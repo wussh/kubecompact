@@ -8,4 +8,5 @@
 - Fix immutable shallow Git acquisition and permit only its exact read-only info/refs protocol query. Keep strict source URL, redirect, TLS, credential and offline boundaries.
 - Retain malformed-YAML diagnostics, supplied deprecation-usage intervals and missing schema-validation inputs as distinct failures/gaps. Do not label requested images as observed running versions.
 - Export exact candidate/evidence references across JSON, CSV, table and HTML. Add actual CLI, offline authenticated transport, browser-link and source-health receipts.
+- Fix narrow HTML report overflow from unbroken readiness IDs and scopes by wrapping inherited body text; preserve complete provenance and the focusable horizontal table region. Browser assertions cover readiness-heavy and evidence-bearing reports at 320px, 390px and desktop widths.
 - Add non-root artifact packaging, notices and candidate-only CI workflows. No release or publication is performed. Controller-backed acceptance, least-privilege audit and independent reviews remain blocked; see [support matrix](docs/support-matrix.md).
