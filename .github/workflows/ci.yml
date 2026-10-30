@@ -1,0 +1,43 @@
+name: Verify scanner
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go mod download
+      - run: go test ./...
+      - run: go test -race ./internal/...
+      - run: go vet ./...
+      - run: CGO_ENABLED=0 go build -trimpath -o bin/kubecompat ./cmd/kubecompat
+      - name: Exercise file-only scanner
+        run: |
+          mkdir -p "$RUNNER_TEMP/kubecompat"
+          bin/kubecompat scan --manifests testdata/manifests/basic.yaml --output "$RUNNER_TEMP/kubecompat/inventory.json"
+          bin/kubecompat scan --manifests testdata/manifests/helm --render helm --target-k8s 1.35 --values testdata/manifests/helm/override.yaml --output "$RUNNER_TEMP/kubecompat/helm.json"
+          bin/kubecompat scan --manifests testdata/manifests/kustomize --render kustomize --target-k8s 1.35 --output "$RUNNER_TEMP/kubecompat/kustomize.json"
+          code=0; bin/kubecompat check --inventory "$RUNNER_TEMP/kubecompat/inventory.json" --target-k8s 1.35 --offline --format json --output "$RUNNER_TEMP/kubecompat/assessment.json" || code=$?
+          test "$code" -eq 3
+          bin/kubecompat report --input "$RUNNER_TEMP/kubecompat/assessment.json" --format html --output "$RUNNER_TEMP/kubecompat/report.html"
+          code=0; bin/kubecompat check --manifests testdata/readiness/removed.yaml --target-k8s 1.35 --offline --format json --output "$RUNNER_TEMP/kubecompat/removed.json" || code=$?
+          test "$code" -eq 2
+        shell: bash
+      - name: Build and exercise non-root image
+        run: |
+          docker build -t kubecompat:test .
+          docker run --rm kubecompat:test version
+          chmod -R a+rX "$RUNNER_TEMP/kubecompat"
+          docker run --rm --network none -v "$PWD/testdata:/input:ro" kubecompat:test scan --manifests /input/manifests/basic.yaml
+          docker run --rm --network none -v "$PWD/testdata:/input:ro" kubecompat:test scan --manifests /input/manifests/helm --render helm --values /input/manifests/helm/override.yaml --target-k8s 1.35
+          docker run --rm --network none -v "$PWD/testdata:/input:ro" kubecompat:test scan --manifests /input/manifests/kustomize --render kustomize --target-k8s 1.35
+          code=0; docker run --rm --network none -v "$RUNNER_TEMP/kubecompat:/input:ro" kubecompat:test check --inventory /input/inventory.json --target-k8s 1.35 --offline --cache /tmp/evidence.db --format json || code=$?
+          test "$code" -eq 3
+          docker run --rm --network none -v "$RUNNER_TEMP/kubecompat:/input:ro" kubecompat:test report --input /input/assessment.json --format html

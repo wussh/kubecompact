@@ -1,0 +1,24 @@
+name: Check official source health
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '19 7 * * 1'
+permissions:
+  contents: read
+jobs:
+  source-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build -o bin/kubecompat ./cmd/kubecompat
+      - name: Refresh isolated public evidence cache
+        run: bin/kubecompat db update --online --cache "$RUNNER_TEMP/kubecompat/evidence.db" --timeout 15m --output source-health.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-health
+          path: source-health.json
+# No cluster credentials and no automatic commit of changed upstream assertions.

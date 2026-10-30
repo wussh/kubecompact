@@ -1,0 +1,11 @@
+.git
+.work
+.superpowers
+bin
+dist
+*.db
+*.db-wal
+*.db-shm
+*.kubeconfig
+.env*
+coverage.out

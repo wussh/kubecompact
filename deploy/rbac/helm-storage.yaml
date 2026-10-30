@@ -1,0 +1,10 @@
+# Bind this Role only in the explicitly authorized Helm storage namespace.
+# Label selectors are not an RBAC boundary: this grants all Secret/ConfigMap reads there.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubecompat-helm-storage-reader
+rules:
+  - apiGroups: [""]
+    resources: [secrets, configmaps]
+    verbs: [get, list]

@@ -1,0 +1,8 @@
+/bin/
+/dist/
+/.work/
+/.superpowers/
+*.db
+*.db-shm
+*.db-wal
+coverage.out

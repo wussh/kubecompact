@@ -1,0 +1,22 @@
+{
+  "kind": "synthetic-regression-excerpts",
+  "capturedAt": "2026-10-29T00:00:00Z",
+  "notice": "Small manually transcribed/synthetic examples of structures observed directly at the attributed official sources. Not complete upstream snapshots and not runtime evidence. Parser tests compute SHA-256 from fixture bytes; production rules hash original fetched response bytes.",
+  "sources": [
+    {"project":"cert-manager","url":"https://cert-manager.io/docs/releases/","license":"upstream documentation terms","statement":"Only the last patch release of each branch is supported.","row":"1.20 | Mar 10, 2026 | Release of 1.22 | 1.32 → 1.35 / 4.19 → 4.21 | 1.32 → 1.35"},
+    {"project":"argocd","url":"https://argo-cd.readthedocs.io/en/stable/operator-manual/tested-kubernetes-versions/","license":"Apache-2.0","row":"3.3 | v1.35, v1.34, v1.33, v1.32"},
+    {"project":"metrics-server","url":"https://raw.githubusercontent.com/kubernetes-sigs/metrics-server/master/README.md","license":"Apache-2.0","row":"0.8.x | metrics.k8s.io/v1beta1 | 1.31+"},
+    {"project":"cilium","url":"https://docs.cilium.io/en/v1.18/network/kubernetes/compatibility/","license":"upstream documentation terms","row":"1.30, 1.31, 1.32, 1.33 | networking.k8s.io/v1 | cilium.io/v2"},
+    {"project":"calico","url":"https://docs.tigera.io/calico/3.33/getting-started/kubernetes/requirements","license":"upstream documentation terms","statement":"We test Calico v3.33 against the following Kubernetes versions: 1.35, 1.36, 1.37"},
+    {"project":"flux","url":"https://github.com/fluxcd/flux2/releases/tag/v2.7.0","license":"Apache-2.0","row":"v1.34 | >= 1.34.1"},
+    {"project":"coredns","url":"https://raw.githubusercontent.com/coredns/coredns/v1.12.4/plugin/kubernetes/README.md","license":"Apache-2.0","statement":"This plugin implements the Kubernetes DNS-Based Service Discovery Specification."},
+    {"project":"ingress-nginx","url":"https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/README.md","license":"Apache-2.0","row":"v1.14.0 | 1.34, 1.33, 1.32, 1.31, 1.30 | chart 4.14.0"},
+    {"project":"prometheus-operator","url":"https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.86.1/README.md","license":"Apache-2.0","statement":"The Prometheus Operator requires at least Kubernetes version 1.16.0."},
+    {"project":"velero","url":"https://raw.githubusercontent.com/velero-io/velero/main/README.md","license":"Apache-2.0","row":"1.17 | 1.18-latest | 1.31.7, 1.32.3, 1.33.1, and 1.34.0"},
+    {"project":"keda","url":"https://keda.sh/docs/2.18/operate/cluster/","license":"upstream documentation terms","row":"v2.18 | v1.31 - v1.33"},
+    {"project":"kyverno","url":"https://kyverno.io/docs/installation/releases/","license":"upstream documentation terms","row":"Supported Release: v1.19; Kubernetes Versions Supported: v1.33 - v1.35"},
+    {"project":"istio","url":"https://istio.io/latest/docs/releases/supported-releases/","license":"CC-BY-4.0","row":"1.29 | No | Feb 16, 2026 | Oct 15, 2026 | 1.31, 1.32, 1.33, 1.34, 1.35 | 1.26, 1.27, 1.28, 1.29, 1.30"},
+    {"project":"longhorn","url":"https://longhorn.io/docs/archives/1.10.0/deploy/install/","license":"CC-BY-4.0","statement":"Kubernetes >= v1.25"},
+    {"project":"rook-ceph","url":"https://rook.io/docs/rook/v1.18/Getting-Started/Prerequisites/prerequisites/","license":"upstream documentation terms","statement":"Kubernetes versions v1.29 through v1.34 are supported."}
+  ]
+}

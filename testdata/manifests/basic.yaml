@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager
+  namespace: example
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: cert-manager}
+  template:
+    metadata:
+      labels: {app: cert-manager}
+    spec:
+      initContainers:
+      - name: init
+        image: busybox:1.37
+      containers:
+      - name: controller
+        image: quay.io/jetstack/cert-manager-controller:v1.20.0
+        env:
+        - name: EXAMPLE_SECRET
+          value: KUBECOMPAT_PAYLOAD_CANARY
+---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Secret
+  metadata: {name: example, namespace: example}
+  stringData: {password: KUBECOMPAT_SECRET_CANARY}
+- apiVersion: v1
+  kind: Service
+  metadata: {name: cert-manager, namespace: example}
+  spec:
+    selector: {app: cert-manager}
+    ports: [{port: 443, targetPort: 8443}]

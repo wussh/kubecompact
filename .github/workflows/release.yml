@@ -1,0 +1,93 @@
+name: Package release candidates
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            suffix: ''
+          - os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+            suffix: ''
+          - os: macos-15
+            goos: darwin
+            goarch: arm64
+            suffix: ''
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            suffix: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - name: Build native artifact
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          go build -trimpath -buildvcs=true -o dist/kubecompat-${GOOS}-${GOARCH}${{ matrix.suffix }} ./cmd/kubecompat
+          dist/kubecompat-${GOOS}-${GOARCH}${{ matrix.suffix }} version
+          go version -m dist/kubecompat-${GOOS}-${GOARCH}${{ matrix.suffix }} > dist/build-info.txt
+          binary="dist/kubecompat-${GOOS}-${GOARCH}${{ matrix.suffix }}"
+          "$binary" scan --manifests testdata/manifests/basic.yaml --output dist/inventory.json
+          "$binary" scan --manifests testdata/manifests/helm --render helm --target-k8s 1.35 --values testdata/manifests/helm/override.yaml --output dist/helm.json
+          "$binary" scan --manifests testdata/manifests/kustomize --render kustomize --target-k8s 1.35 --output dist/kustomize.json
+          code=0; "$binary" check --inventory dist/inventory.json --offline --target-k8s 1.35 --format json --output dist/assessment.json || code=$?
+          test "$code" -eq 3
+          code=0; "$binary" report --input dist/assessment.json --format html --output dist/report.html || code=$?
+          test "$code" -eq 0
+          cp -R LICENSE THIRD-PARTY-NOTICES.md third_party dist/
+          mkdir -p dist/data/schemas
+          cp data/LICENSE-APACHE-2.0 dist/data/
+          cp data/schemas/LICENSE data/schemas/provenance.json dist/data/schemas/
+          printf 'sourceRevision=%s\nsourceDirty=false\n' "$GITHUB_SHA" > dist/source-revision.txt
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          file: dist/kubecompat-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          format: spdx-json
+          output-file: dist/sbom.spdx.json
+          upload-artifact: false
+          syft-version: v1.55.0
+          upload-release-assets: false
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          file: dist/kubecompat-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
+          format: cyclonedx-json
+          output-file: dist/sbom.cdx.json
+          upload-artifact: false
+          syft-version: v1.55.0
+          upload-release-assets: false
+      - name: Package notices and verify final checksums
+        shell: bash
+        run: |
+          tar -czf dist/notices.tar.gz LICENSE THIRD-PARTY-NOTICES.md third_party/licenses data/LICENSE-APACHE-2.0 data/schemas/LICENSE data/schemas/provenance.json
+          cd dist
+          files=(kubecompat-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} sbom.spdx.json sbom.cdx.json build-info.txt source-revision.txt notices.tar.gz)
+          if command -v sha256sum >/dev/null; then
+            sha256sum "${files[@]}" > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          else
+            shasum -a 256 "${files[@]}" > SHA256SUMS
+            shasum -a 256 -c SHA256SUMS
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kubecompat-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+# This workflow packages candidates only. It does not create a tag, GitHub release or push a container.
