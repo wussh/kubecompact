@@ -52,6 +52,20 @@ func Correlate(inv model.Inventory) model.Inventory {
 			}
 		}
 	}
+	// Storage identity joins history/Flux; ownership annotations name the release destination.
+	ownership := map[string]string{}
+	ambiguousOwnership := map[string]bool{}
+	for _, c := range inv.Components {
+		if c.Chart == nil || c.Chart.ReleaseName == "" || c.Chart.ReleaseNamespace == "" {
+			continue
+		}
+		key := model.ID(c.ClusterID, c.Chart.ReleaseNamespace, c.Chart.ReleaseName)
+		id := resolve(c.ID)
+		if prior := ownership[key]; prior != "" && prior != id {
+			ambiguousOwnership[key] = true
+		}
+		ownership[key] = id
+	}
 	parent := map[string]string{}
 	for key, r := range resources {
 		for _, o := range r.Owners {
@@ -76,7 +90,12 @@ func Correlate(inv model.Inventory) model.Inventory {
 		}
 		candidate := ""
 		if name := r.Annotations["meta.helm.sh/release-name"]; name != "" {
-			candidate = helm[model.ID(r.Ref.ClusterID, r.Annotations["meta.helm.sh/release-namespace"], name)]
+			key := model.ID(r.Ref.ClusterID, r.Annotations["meta.helm.sh/release-namespace"], name)
+			if ambiguousOwnership[key] {
+				inv.Coverage = append(inv.Coverage, model.Coverage{Collector: "management-correlation", Scope: key, State: "PARTIAL", Code: "AMBIGUOUS_MANAGEMENT"})
+				continue
+			}
+			candidate = ownership[key]
 		}
 		if tracking := r.Annotations["argocd.argoproj.io/tracking-id"]; tracking != "" {
 			parts := strings.SplitN(tracking, ":", 2)
@@ -97,7 +116,7 @@ func Correlate(inv model.Inventory) model.Inventory {
 						continue
 					}
 					if candidate != "" && candidate != id {
-						inv.Diagnostics = append(inv.Diagnostics, model.Diagnostic{Code: "AMBIGUOUS_MANAGEMENT", Scope: key, Message: "Conflicting management identities"})
+						inv.Coverage = append(inv.Coverage, model.Coverage{Collector: "management-correlation", Scope: key, State: "PARTIAL", Code: "AMBIGUOUS_MANAGEMENT"})
 						candidate = ""
 						break
 					}

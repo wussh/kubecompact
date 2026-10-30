@@ -24,6 +24,7 @@ const (
 
 type ScanOptions struct {
 	Kubeconfig, Context, Namespace                        string
+	HelmStorageNamespace                                  string
 	AllNamespaces, HelmStorage                            bool
 	Manifests, GitURL, GitRevision, GitPath, Render       string
 	Timeout                                               time.Duration
@@ -88,6 +89,7 @@ type ChartObservation struct {
 	AppVersion       string `json:"appVersion,omitempty"`
 	KubeVersion      string `json:"kubeVersion,omitempty"`
 	ReleaseName      string `json:"releaseName,omitempty"`
+	ReleaseNamespace string `json:"releaseNamespace,omitempty"`
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 	Status           string `json:"status,omitempty"`
 }

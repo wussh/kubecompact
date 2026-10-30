@@ -54,3 +54,22 @@ func TestMalformedDocumentPreservesSafeDiagnosticsAndInvalidInputExit(t *testing
 		}
 	}
 }
+
+func TestHelmStorageNamespaceRejectsNonLiveAndUnscopedInputs(t *testing.T) {
+	for _, args := range [][]string{
+		{"scan", "--helm-storage-namespace", "storage"},
+		{"scan", "--helm-storage", "--all-namespaces"},
+		{"scan", "--helm-storage", "--helm-storage-namespace", "*"},
+		{"scan", "--helm-storage", "--helm-storage-namespace", "one,two"},
+		{"scan", "--helm-storage", "--helm-storage-namespace", "Bad_Name"},
+		{"scan", "--helm-storage", "--helm-storage-namespace", "storage", "--manifests", "missing.yaml"},
+		{"check", "--helm-storage", "--helm-storage-namespace", "storage", "--inventory", "missing.json", "--target-k8s", "1.35"},
+		{"report", "--helm-storage", "--helm-storage-namespace", "storage", "--input", "missing.json"},
+		{"db", "update", "--helm-storage", "--helm-storage-namespace", "storage"},
+	} {
+		var out, errs bytes.Buffer
+		if code := Run(context.Background(), args, &out, &errs); code != 1 || !strings.Contains(errs.String(), "Helm storage") {
+			t.Fatalf("expected pre-collection storage validation: %v: %d %s", args, code, errs.String())
+		}
+	}
+}

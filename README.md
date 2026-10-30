@@ -24,7 +24,7 @@ bin/kubecompat db update --online --cache evidence/evidence.db --timeout 15m --o
 bin/kubecompat check --inventory inventory.json --target-k8s 1.35 --offline --cache evidence/evidence.db --format json --output assessment.json
 ```
 
-Base scans never request Secret/ConfigMap payloads. Optional Helm release bodies require separate authorization, namespace scope and `--helm-storage`; see [security](docs/security.md). Failed or absent source/controller access remains visible. Fifteen compile-time adapters retrieve official documentation/release metadata; not every upstream publishes an authoritative runtime matrix.
+Base scans never request Secret/ConfigMap payloads. Optional Helm release bodies require separate authorization, `--helm-storage`, and one storage namespace: `--namespace NAME` or explicit `--helm-storage-namespace NAME` independent of all-namespace workload scope; see [security](docs/security.md). Failed or absent source/controller access remains visible. Fifteen compile-time adapters retrieve official documentation/release metadata; not every upstream publishes an authoritative runtime matrix.
 
 ## What results mean
 

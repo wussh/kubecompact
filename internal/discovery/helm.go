@@ -13,10 +13,32 @@ import (
 
 	"github.com/wussh/kubecompact/internal/model"
 	release "helm.sh/helm/v4/pkg/release/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
+
+// StorageNamespace resolves the single explicitly authorized live storage scope.
+func StorageNamespace(opts model.ScanOptions) (string, error) {
+	if !opts.HelmStorage {
+		if opts.HelmStorageNamespace != "" {
+			return "", errors.New("HELM_STORAGE_REQUIRES_OPT_IN")
+		}
+		return "", nil
+	}
+	if opts.Manifests != "" || opts.GitURL != "" {
+		return "", errors.New("HELM_STORAGE_REQUIRES_LIVE_INPUT")
+	}
+	ns := opts.HelmStorageNamespace
+	if ns == "" && !opts.AllNamespaces {
+		ns = opts.Namespace
+	}
+	if len(apivalidation.ValidateNamespaceName(ns, false)) != 0 {
+		return "", errors.New("HELM_STORAGE_REQUIRES_VALID_NAMESPACE")
+	}
+	return ns, nil
+}
 
 // Helm's storage decoder is private; mirror its wire format with a hard expansion bound.
 func decodeRelease(s string) (*release.Release, error) {
@@ -98,6 +120,7 @@ func addRelease(inv *model.Inventory, r *release.Release, storage string) {
 	id := model.ID(cluster, "helm", storage, r.Name)
 	m := r.Chart.Metadata
 	c := model.Component{ID: id, Name: r.Name, Namespace: r.Namespace, ClusterID: cluster, ManagedBy: []string{"helm"}, Chart: &model.ChartObservation{Name: m.Name, Version: m.Version, AppVersion: m.AppVersion, KubeVersion: m.KubeVersion, ReleaseName: r.Name, StorageNamespace: storage, Status: string(r.Info.Status)}, Status: string(r.Info.Status), ObservedAt: inv.StartedAt}
+	c.Chart.ReleaseNamespace = r.Namespace
 	success := c.Status == "deployed" || c.Status == "superseded"
 	role := "resolved"
 	if success {

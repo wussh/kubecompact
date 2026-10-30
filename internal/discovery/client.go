@@ -157,8 +157,9 @@ func (r *reader) list(ctx context.Context, k resourceKind, namespace string) ([]
 	return out, cov
 }
 func Collect(ctx context.Context, opts model.ScanOptions) (model.Inventory, error) {
-	if opts.HelmStorage && (opts.Namespace == "" || opts.AllNamespaces) {
-		return model.Inventory{}, errors.New("HELM_STORAGE_REQUIRES_EXCLUSIVE_NAMESPACE")
+	storageNamespace, err := StorageNamespace(opts)
+	if err != nil {
+		return model.Inventory{}, err
 	}
 	timeout := opts.Timeout
 	if timeout <= 0 {
@@ -167,7 +168,7 @@ func Collect(ctx context.Context, opts model.ScanOptions) (model.Inventory, erro
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	var config *rest.Config
-	var err error
+
 	if opts.Kubeconfig != "" || opts.Context != "" {
 		rules := clientcmd.NewDefaultClientConfigLoadingRules()
 		rules.ExplicitPath = opts.Kubeconfig
@@ -179,7 +180,7 @@ func Collect(ctx context.Context, opts model.ScanOptions) (model.Inventory, erro
 	if err != nil {
 		return model.Inventory{}, errors.New("KUBERNETES_CONFIGURATION_UNAVAILABLE")
 	}
-	r, err := newReader(config, opts.HelmStorage, opts.Namespace)
+	r, err := newReader(config, opts.HelmStorage, storageNamespace)
 	if err != nil {
 		return model.Inventory{}, err
 	}
@@ -236,7 +237,7 @@ func Collect(ctx context.Context, opts model.ScanOptions) (model.Inventory, erro
 	inv.Clusters[0].Gaps = append(inv.Clusters[0].Gaps, "CONTROL_PLANE_MEMBERS_NOT_ENUMERATED")
 	inv.Coverage = coverage
 	if opts.HelmStorage {
-		r.helm(ctx, &inv, opts.Namespace)
+		r.helm(ctx, &inv, storageNamespace)
 	} else {
 		inv.Coverage = append(inv.Coverage, model.Coverage{Collector: "helm-storage", State: "NOT_REQUESTED"})
 	}

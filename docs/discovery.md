@@ -4,7 +4,7 @@
 
 ## Access and bounds
 
-Base collection does not read Secrets or ConfigMaps. The transport permits GET only, rejects watch and sensitive subresources, and blocks storage reads unless `HelmStorage` and an explicit namespace are supplied. QPS is 5, burst 10, request timeout 30 seconds, scan timeout five minutes unless overridden, page size 200 and maximum pages 10,000. Cancellation propagates through resource requests. Forbidden access is UNREADABLE; a failure after a successful page is PARTIAL and retains collected objects. Missing endpoints are NOT_PRESENT, not successful inspection of instances. Collection is serial, bounded below the four-collector concurrency ceiling.
+Base collection does not read Secrets or ConfigMaps. `HelmStorageNamespace` / `--helm-storage-namespace` selects one explicit authorized storage namespace independently of workload scope; absent the override, storage falls back to `--namespace`. The shared resolver rejects missing/invalid/broad scopes, override without opt-in and nonlive input before configuration/API access. With explicit storage scope, `--all-namespaces` may discover workloads while the existing GET-only transport and Helm Secret/ConfigMap queries stay scoped to that one namespace. Coverage records the actual storage namespace; release destination namespace and ownership stay unchanged. The transport rejects watch/sensitive subresources. QPS 5, burst 10, request timeout 30 seconds, default scan timeout five minutes, page size 200/max pages 10,000 remain unchanged. Cancellation propagates; forbidden access is UNREADABLE, failure after a page is PARTIAL retaining prior objects, absent endpoints are NOT_PRESENT. Collection remains serial.
 
 `deploy/rbac/base.yaml` is an unbound ClusterRole. Namespace-limited requests do not prove visibility into other namespaces. The separate `helm-storage.yaml` Role must be bound only in the authorized storage namespace: its permissions expose **all Secret and ConfigMap bodies in that namespace** to the credential. A label selector is not authorization. Neither role grants watch or write access. The scanner does not install roles or bindings.
 
@@ -22,7 +22,7 @@ Argo sources preserve index/order, values-only refs, target and resolved revisio
 
 Helm 3/4 release JSON is decoded into the pinned Helm 4.3.1 release SDK record after bounded base64/gzip decoding. Only chart metadata, release state, version provenance and rendered images leave the decoder. Repository is unknown unless a controller supplies it; chart home/source URLs do not establish the chart repository. Successful older history survives failed newer revisions. SQL release storage extraction is unsupported and reported separately.
 
-Resources join through cluster/UID owner references. Helm release identity includes cluster, storage namespace and actual release name. Argo tracking uses exact target annotations plus matching installation IDs, never colliding instance labels. Resources with recreated UIDs or different cluster identities are not equal.
+Resources join through cluster/UID owner references. Helm **storage identity** (cluster, storage namespace, actual release name) joins history and Flux release records. Workload ownership is separate: cluster + observed `chart.releaseNamespace` + actual release name, resolved only to a unique canonical installation after storage aliases. `releaseNamespace` comes only from Helm `release.Namespace` or Flux's documented targetNamespace/default, never storage namespace or Argo chart-render declarations. Multiple storage installations sharing the ownership tuple remain separate; affected workload ownership is PARTIAL/AMBIGUOUS_MANAGEMENT, not malformed input or an arbitrary merge. Argo tracking still requires exact target annotations/matching installation IDs; colliding labels/recreated UIDs/different clusters never establish identity.
 
 ## Validation boundary
 
@@ -36,3 +36,5 @@ Synthetic regression tests cover projection confidentiality, ordered Argo source
 - [Flux HelmRelease status](https://fluxcd.io/flux/components/helm/helmreleases/)
 - [Helm storage decoder source](https://github.com/helm/helm/blob/v4.3.1/pkg/storage/driver/util.go)
 - [Helm release record](https://github.com/helm/helm/blob/v4.3.1/pkg/release/v1/release.go)
+- [Pinned Helm install metadata visitor call](https://github.com/helm/helm/blob/v4.3.1/pkg/action/install.go#L405-L411): passes `rel.Name`, `rel.Namespace`.
+- [Pinned Helm ownership annotations](https://github.com/helm/helm/blob/v4.3.1/pkg/action/validate.go#L209-L235): writes `meta.helm.sh/release-namespace` from that release namespace.

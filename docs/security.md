@@ -8,7 +8,7 @@ Select an explicitly trusted `--context`/`--kubeconfig`, or use in-cluster crede
 
 The unbound [base role](../deploy/rbac/base.yaml) enumerates named resources and GET/LIST only. It grants no Secret, ConfigMap, watch or mutation permissions. The scanner never installs/binds roles. Real least-privilege access must be provisioned separately; a scan with an existing privileged credential is not proof the role was tested.
 
-Helm storage is separately opt-in: `--helm-storage --namespace NAME`. The [storage role](../deploy/rbac/helm-storage.yaml) exposes all Secret/ConfigMap bodies in that namespace to its bound credential, not just release metadata. A Helm label selector is query optimization, not authorization. SQL storage is a coverage gap. Default live collection performs no Secret/ConfigMap payload requests.
+Helm storage is separately opt-in: `--helm-storage --namespace NAME`, or `--helm-storage --helm-storage-namespace NAME` with a different workload namespace or `--all-namespaces`. Exactly one valid explicitly authorized storage namespace is resolved before API/configuration access; wildcard/multi-namespace/invalid scopes and override without opt-in or live input are rejected. Default live collection still performs zero Secret/ConfigMap payload requests. The [storage role](../deploy/rbac/helm-storage.yaml) exposes all Secret/ConfigMap bodies in its bound namespace, not only release metadata: a label selector is query optimization, not authorization. The transport and paginated release queries retain only the resolved storage namespace, never all-namespace payload endpoints. Release workload namespace is not rewritten to storage namespace. SQL storage remains a coverage gap.
 
 ## Confidentiality
 

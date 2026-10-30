@@ -45,6 +45,7 @@ func bind(fs *flag.FlagSet, f *flags) {
 	fs.StringVar(&f.scan.Namespace, "namespace", "", "namespace scope (default namespace for live scan)")
 	fs.BoolVar(&f.scan.AllNamespaces, "all-namespaces", false, "read all authorized namespaces")
 	fs.BoolVar(&f.scan.HelmStorage, "helm-storage", false, "explicitly authorize Helm Secret/ConfigMap release reads in selected namespace")
+	fs.StringVar(&f.scan.HelmStorageNamespace, "helm-storage-namespace", "", "single authorized Helm storage namespace (defaults to --namespace)")
 	fs.StringVar(&f.scan.Manifests, "manifests", "", "local manifest directory or file (no cluster authentication)")
 	fs.StringVar(&f.scan.Render, "render", "", "local render mode: helm or kustomize")
 	fs.StringVar(&f.scan.ValuesFile, "values", "", "explicit Helm values file")
@@ -359,11 +360,11 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if f.scan.Timeout <= 0 {
 		return fail(1, "timeout must be positive")
 	}
-	if f.scan.HelmStorage && f.scan.AllNamespaces {
-		return fail(1, "Helm storage access requires an explicit namespace scope")
+	if _, err := discovery.StorageNamespace(f.scan); err != nil {
+		return fail(1, "Helm storage requires opt-in, live input and one valid explicit storage namespace")
 	}
-	if f.scan.HelmStorage && f.scan.Namespace == "" {
-		return fail(1, "Helm storage access requires --namespace")
+	if f.scan.HelmStorage && (f.inventory != "" || f.input != "" || command == "db") {
+		return fail(1, "Helm storage requires live collection")
 	}
 	if f.format != "json" && f.format != "table" && f.format != "csv" && f.format != "html" {
 		return fail(1, "unsupported output format")

@@ -97,6 +97,7 @@ func controller(o map[string]any, c *model.Component, now time.Time) {
 		}
 		chart, _ := at(o, "spec", "chart", "spec").(map[string]any)
 		c.Chart = &model.ChartObservation{Name: text(chart, "chart"), Version: text(chart, "version"), ReleaseName: release, StorageNamespace: storage, Status: c.Status}
+		c.Chart.ReleaseNamespace = ns
 		version(c, "desired", "chart", c.Chart.Version, "spec.chart.spec.version", g, false, now)
 		version(c, "resolved", "chart", text(o, "status", "lastAttemptedRevision"), "status.lastAttemptedRevision", observed, false, now)
 		var best map[string]any
