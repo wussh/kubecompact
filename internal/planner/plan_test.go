@@ -552,6 +552,12 @@ func TestDatastoreAndReceipts(t *testing.T) {
 				r.ValidUntil = testNow.Add(-time.Minute)
 				return r
 			}()}, 3},
+		{"post-hop older than observation", "sqlite", "plan-completion-boundary", "UNKNOWN", "PENDING_EXECUTION_OR_FRESH_POST_HOP_REOBSERVATION",
+			[]model.OperatorReceipt{func() model.OperatorReceipt {
+				r := receipt("post-hop-health", "PASS")
+				r.ObservedAt = testNow.Add(-3 * time.Hour)
+				return r
+			}()}, 3},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -615,6 +621,72 @@ func TestDeterministicAndNonMutating(t *testing.T) {
 		if strings.Contains(string(encoded), canary) {
 			t.Fatalf("plan output leaked %q", canary)
 		}
+	}
+}
+
+func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
+	observed := testNow.Add(-2 * time.Hour)
+	postObserved := testNow.Add(-time.Hour)
+	build := func(postHopAt time.Time) model.UpgradePlan {
+		inv := model.Inventory{
+			SchemaVersion: model.SchemaVersion,
+			Clusters: []model.ClusterObservation{{
+				ID:                "synthetic-lab",
+				KubernetesVersion: "v1.34.1+k3s1",
+				Distribution:      "k3s",
+				ObservedAt:        observed,
+				Nodes: []model.NodeObservation{
+					{Name: "s1", KubeletVersion: "v1.34.1+k3s1", Architecture: "amd64", Ready: true, ControlPlane: true},
+					{Name: "a1", KubeletVersion: "v1.34.1+k3s1", Architecture: "amd64", Ready: true},
+				},
+			}},
+		}
+		hop := model.HopInput{
+			FromRelease: "v1.34.1+k3s1", ToRelease: "v1.35.0+k3s1", ClusterID: "synthetic-lab",
+			ObservedAt: observed, ValidUntil: testNow.Add(time.Hour), EvidenceOwner: "synthetic-operator",
+			Datastore: "sqlite", Servers: []string{"s1"}, Order: []string{"s1", "a1"}, Inventory: &inv,
+		}
+		for _, kind := range []string{"backup", "restore-drill", "token-custody", "configuration-preserved", "sqlite-backup", "post-hop-health"} {
+			item := receipt(kind, "PASS")
+			if kind == "post-hop-health" {
+				item.ObservedAt = postHopAt
+			}
+			hop.Receipts = append(hop.Receipts, item)
+		}
+		in := baseInput("1.34", "1.35")
+		in.Hops = []model.HopInput{hop}
+		evaluate := func(_ context.Context, _ model.Inventory, target string) (model.Assessment, error) {
+			return model.Assessment{
+				SchemaVersion:    model.SchemaVersion,
+				TargetKubernetes: target,
+				Components: []model.ComponentAssessment{{
+					Component: model.Component{ID: "compatible-app", Name: "compatible-app"},
+					Verdict:   model.Compatible,
+				}},
+			}, nil
+		}
+		return mustBuild(t, in, "1.34", "1.35", evaluate)
+	}
+
+	complete := build(postObserved)
+	if complete.ExitCode != 0 || complete.Decision != "NO_KNOWN_BLOCKERS" {
+		t.Fatalf("fully attested plan=%s/%d checks=%+v", complete.Decision, complete.ExitCode, complete.Hops[0].Assessment.Checks)
+	}
+	if !hasCheck(complete.Hops[0].Assessment, "plan-completion-boundary", "PASS", "CURRENT_OPERATOR_POST_HOP_HEALTH") {
+		t.Fatal("complete post-hop receipt did not reach PASS")
+	}
+
+	preObservation := build(observed.Add(-time.Hour))
+	if preObservation.ExitCode != 3 || preObservation.Decision != "INCOMPLETE" {
+		t.Fatalf("pre-observation post-hop plan=%s/%d", preObservation.Decision, preObservation.ExitCode)
+	}
+	if !hasCheck(preObservation.Hops[0].Assessment, "plan-completion-boundary", "UNKNOWN", "PENDING_EXECUTION_OR_FRESH_POST_HOP_REOBSERVATION") {
+		t.Fatal("pre-observation post-hop receipt incorrectly reached PASS")
+	}
+
+	equal := build(observed)
+	if !hasCheck(equal.Hops[0].Assessment, "plan-completion-boundary", "PASS", "CURRENT_OPERATOR_POST_HOP_HEALTH") || equal.ExitCode != 0 {
+		t.Fatalf("equal-time post-hop receipt did not remain PASS: %s/%d", equal.Decision, equal.ExitCode)
 	}
 }
 

@@ -138,6 +138,10 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 			cp.State = "FAIL"
 			cp.Severity = "BLOCKER"
 			cp.Reason = "DIRECT_UPGRADE_SEQUENCE_UNSUPPORTED"
+		} else if ok && controlPlaneObserved(cluster.Nodes) {
+			cp.State = "PASS"
+			cp.Severity = "INFO"
+			cp.Reason = "CONTROL_PLANE_MEMBERS_OBSERVED"
 		}
 		results = append(results, cp)
 	}
@@ -162,6 +166,24 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 }
 func check(domain, scope, state, severity, reason string) model.CheckResult {
 	return model.CheckResult{ID: model.ID("readiness/v1", domain, scope, reason), Domain: domain, Scope: scope, State: state, Severity: severity, Reason: reason}
+}
+
+// controlPlaneObserved requires at least one server and a parseable kubelet
+// version for every observed node. Missing observations stay UNKNOWN.
+func controlPlaneObserved(nodes []model.NodeObservation) bool {
+	if len(nodes) == 0 {
+		return false
+	}
+	server := false
+	for _, node := range nodes {
+		if _, ok := versionMinor(node.KubeletVersion); !ok {
+			return false
+		}
+		if node.ControlPlane {
+			server = true
+		}
+	}
+	return server
 }
 func boundary(v string) int {
 	_, n := versionMinor(v)

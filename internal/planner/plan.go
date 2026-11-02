@@ -264,7 +264,7 @@ func completionCheck(a *model.Assessment, h model.HopInput, scope string, now ti
 		if receipt.Status == "FAIL" {
 			result = checked(scope, "completion-boundary", "FAIL", "SUPPLIED_POST_HOP_HEALTH_FAILED")
 			result.EvidenceIDs = []string{receipt.EvidenceID}
-		} else if receipt.Status == "PASS" && current(receipt, now) {
+		} else if receipt.Status == "PASS" && current(receipt, now) && !receipt.ObservedAt.Before(h.ObservedAt) {
 			result = checked(scope, "completion-boundary", "PASS", "CURRENT_OPERATOR_POST_HOP_HEALTH")
 			result.EvidenceIDs = []string{receipt.EvidenceID}
 		}

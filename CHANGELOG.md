@@ -2,6 +2,7 @@
 
 ## Unreleased — 2026-11-02
 
+- Make complete evidence reachable: fully observed control planes now report `CONTROL_PLANE_MEMBERS_OBSERVED` PASS while missing/unparseable evidence stays UNKNOWN and skew remains BLOCKER; bind `post-hop-health` receipts to the hop observation so a pre-observation receipt cannot certify completion. Document exit0's BLOCKER/UNKNOWN semantics and self-attested receipt freshness.
 - Qualify Kubernetes 1.33, 1.34 and 1.35 with individually pinned lifecycle catalogs and strict schema bundles while preserving 1.35 bytes. Selection is explicit per target, lazily verified and never falls back; `resolvedTarget` stays separate from exact distribution release identity.
 - Add the read-only, strictly offline K3s `plan` command: adjacent 1.32→1.35 hops, supplied sanitized per-hop inventories, server-first one-at-a-time ordering, HA/kubelet skew, datastore-specific backup and operator-receipt gates with explicit freshness, blocker dominance and required UNKNOWNs for missing future evidence. No execution, drain, upgrade, restore or rollback path exists.
 - Add schema-validated saved-plan `report --input` dispatch and full JSON/CSV/table/HTML plan rendering with named CSV columns, per-hop decisions and stop conditions. HTML is self-contained with in-document hop sections instead of iframes; filters never change plan or hop gates.

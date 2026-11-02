@@ -111,3 +111,51 @@ func TestTargetPatchIsExplicit(t *testing.T) {
 		}
 	}
 }
+
+func TestControlPlaneObservationGate(t *testing.T) {
+	cases := []struct {
+		name    string
+		version string
+		nodes   []model.NodeObservation
+		state   string
+		reason  string
+	}{
+		{"complete observation", "v1.34.1", []model.NodeObservation{
+			{Name: "s1", KubeletVersion: "v1.34.1", ControlPlane: true, Ready: true},
+			{Name: "a1", KubeletVersion: "v1.34.1", Ready: true},
+		}, "PASS", "CONTROL_PLANE_MEMBERS_OBSERVED"},
+		{"no node observations", "v1.34.1", nil, "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED"},
+		{"no server observation", "v1.34.1", []model.NodeObservation{
+			{Name: "a1", KubeletVersion: "v1.34.1", Ready: true},
+		}, "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED"},
+		{"unparseable member version", "v1.34.1", []model.NodeObservation{
+			{Name: "s1", KubeletVersion: "not-a-version", ControlPlane: true, Ready: true},
+		}, "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED"},
+		{"unparseable cluster version", "not-a-version", []model.NodeObservation{
+			{Name: "s1", KubeletVersion: "v1.34.1", ControlPlane: true, Ready: true},
+		}, "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED"},
+		{"skew failure dominates", "v1.33.0", []model.NodeObservation{
+			{Name: "s1", KubeletVersion: "v1.33.0", ControlPlane: true, Ready: true},
+		}, "FAIL", "DIRECT_UPGRADE_SEQUENCE_UNSUPPORTED"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			inv := model.Inventory{SchemaVersion: model.SchemaVersion, Clusters: []model.ClusterObservation{{
+				ID: "synthetic", KubernetesVersion: tc.version, Distribution: "k3s", Nodes: tc.nodes,
+			}}}
+			results, err := Check(context.Background(), inv, model.CheckOptions{TargetKubernetes: "1.35"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := false
+			for _, result := range results {
+				if result.Domain == "control-plane" && result.State == tc.state && result.Reason == tc.reason {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("missing %s/%s control-plane observation in %+v", tc.state, tc.reason, results)
+			}
+		})
+	}
+}
