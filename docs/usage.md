@@ -87,13 +87,13 @@ Output files are written atomically with mode 0600. Their parent directory must 
 
 | Code | Meaning |
 | --- | --- |
-| 0 | No BLOCKER-severity finding and no required UNKNOWN (complete inventory/assessment/plan), or successful saved report/saved-plan rendering. Non-blocking FAIL/WARNING operational findings (for example `API_DEPRECATED` or PDB `disruptionsAllowed=0`) remain visible and are not excluded from review. Not runtime certification or execution permission. |
+| 0 | No BLOCKER-severity check, no INCOMPATIBLE/UPGRADE_REQUIRED component verdict, no UNKNOWN/NOT_TESTED component verdict, no required UNKNOWN check, and no PARTIAL/UNREADABLE coverage; or successful saved report/saved-plan rendering. Non-blocking FAIL/WARNING checks (for example `API_DEPRECATED` or PDB `disruptionsAllowed=0`) remain visible and are not excluded from review. Not runtime certification or execution permission. |
 | 1 | Invalid command, malformed plan input, conflicting identity or unsupported target. |
 | 2 | Proven compatibility/readiness/plan blocker; unknown findings remain visible. |
 | 3 | Incomplete collection/evidence, unresolved required checks or missing future plan-hop evidence; partial source refresh. |
 | 4 | Operational failure, such as unavailable configuration/cache/referenced inventory/output. |
 
-`report --input` returns rendering success/failure; the assessment's or plan's original exit code remains in its output. `scan` returns collection status, not a compatibility verdict. `plan` returns its plan gate: 1 for invalid input, 2 for blockers and 3 for required unknowns.
+`report --input` returns rendering success/failure; the assessment's or plan's original exit code remains in its output. `scan` returns collection status, not a compatibility verdict. `plan` returns its plan gate: 0 for no blocker and no required unknown (conditional only), 1 for invalid input, 2 for a blocker, 3 for a required unknown and 4 for an I/O or operational failure. A saved-plan report remains rendering exit 0 while retaining the stored plan/hop gates.
 
 ## Identity, private sources and rendering
 
