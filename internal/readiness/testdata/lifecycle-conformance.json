@@ -1,0 +1,34 @@
+{
+  "generatorRevision": "lifecycle-conformance/v1",
+  "officialRevision": "9afe7de0a56c582b06ca094f7309015bc84657a7",
+  "officialDigest": "557101639f43ed74cb5e459aa186ddd9a74ec40ef44e2ac36f6f53869b34176d",
+  "plutoRevision": "9495152d614581a988e31414fa64e8b82474d956",
+  "plutoSource": "versions.yaml",
+  "plutoDigest": "68c70bc983ad53f496dbf24935749f54306ee8a0128d68442a4916d4a5b22cd5",
+  "kubepugRevision": "5a18f77bbd6cadd5ce2469cd98e142fbf0bae497",
+  "kubepugSource": "generator/deprecations/gen.go",
+  "kubepugDigest": "21c3b1423109db9823a5ba7df462bab8adb2256610ebb26b47d9274ad9d45946",
+  "kubepugContract": "Static generator field contract only: introduced/deprecated/removed/replacement from official tags; no checked-in comparable generated dataset, no replacement availability field. Not independent generated output.",
+  "adjudication": "https://kubernetes.io/docs/reference/using-api/deprecation-guide/",
+  "license": "Apache-2.0; hand-reviewed facts, no upstream code copied",
+  "entries": [
+    {"group":"batch","version":"v1beta1","kind":"CronJob","introduced":"1.8","deprecated":"1.21","removed":"1.25","replacement":"batch/v1 CronJob","replacementIntroduced":"1.21","plutoDeprecated":"1.21","plutoRemoved":"1.25","plutoReplacement":"batch/v1 CronJob"},
+    {"group":"extensions","version":"v1beta1","kind":"Deployment","introduced":"1.1","deprecated":"1.8","removed":"1.16","replacement":"apps/v1 Deployment","replacementIntroduced":"1.9","plutoDeprecated":"1.9","plutoRemoved":"1.16","plutoReplacement":"apps/v1 Deployment","difference":"Official generated APILifecycleDeprecated tag is 1.8; Pluto records 1.9 (GA availability is not deprecation timing). Official source adjudicates 1.8; no override."},
+    {"group":"extensions","version":"v1beta1","kind":"DeploymentRollback","introduced":"1.2","deprecated":"1.8","removed":"1.16","replacement":"","difference":"No Pluto exact-GVK overlap; official generated lifecycle has no replacement function. No migration path inferred."},
+    {"group":"extensions","version":"v1beta1","kind":"Ingress","introduced":"1.1","deprecated":"1.14","removed":"1.22","replacement":"networking.k8s.io/v1 Ingress","replacementIntroduced":"1.19","plutoDeprecated":"1.14","plutoRemoved":"1.22","plutoReplacement":"networking.k8s.io/v1 Ingress"},
+    {"group":"policy","version":"v1beta1","kind":"PodSecurityPolicy","absent":true,"plutoDeprecated":"1.21","plutoRemoved":"1.25","plutoReplacement":"","difference":"Absent from current official v0.35 catalog; Pluto historical coverage does not authorize fabricating an entry. Preserve UNKNOWN."}
+  ],
+  "cases": [
+    {"entry":0,"target":7,"reason":"API_NOT_YET_AVAILABLE"},
+    {"entry":0,"target":8,"reason":"API_AVAILABLE_AT_TARGET"},
+    {"entry":0,"target":24,"reason":"API_DEPRECATED"},
+    {"entry":0,"target":25,"reason":"API_REMOVED"},
+    {"entry":1,"target":8,"reason":"API_DEPRECATED"},
+    {"entry":2,"target":16,"reason":"API_REMOVED"},
+    {"entry":3,"target":14,"reason":"API_DEPRECATED","replacementAvailable":false},
+    {"entry":3,"target":18,"reason":"API_DEPRECATED","replacementAvailable":false},
+    {"entry":3,"target":19,"reason":"API_DEPRECATED","replacementAvailable":true},
+    {"entry":3,"target":22,"reason":"API_REMOVED","replacementAvailable":true},
+    {"entry":4,"target":25,"reason":"API_NOT_IN_LIFECYCLE_CATALOG"}
+  ]
+}

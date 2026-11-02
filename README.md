@@ -40,6 +40,8 @@ API/schema/static readiness findings are independent. The pinned target catalog 
 
 Inventory separates desired, attempted, resolved, successfully deployed and observed running versions. Helm chart/app versions are not interchangeable. Argo multi-source/values-only and Flux source/status observations retain provenance; ownership joins use resource/installation identities rather than labels alone.
 
+Reports retain global blockers and incomplete coverage even with no components or component filters. CSV uses explicit summary/component/check/coverage row types; table/HTML prioritize domain triage with bounded next-evidence actions, while preserving the full decision and all finding references. Installation, workload-reference and observed-running-image counts have separate documented denominators; see [output contracts](docs/usage.md). Finite offline lifecycle conformance references supplement, not replace, the pinned authoritative catalog.
+
 ## Documentation
 
 - [Commands, outputs, private sources and exit codes](docs/usage.md)

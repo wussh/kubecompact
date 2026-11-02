@@ -73,28 +73,7 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 			version = parts[1]
 		}
 		e, known := entries[r.Ref.Group+"/"+version+"/"+r.Ref.Kind]
-		api := check("api", scope, "UNKNOWN", "WARNING", "API_NOT_IN_LIFECYCLE_CATALOG")
-		if known {
-			api.State = "PASS"
-			api.Severity = "INFO"
-			api.Reason = "API_AVAILABLE_AT_TARGET"
-			api.Details = map[string]string{"source": e.Source, "catalog": "kubernetes-api-v0.35.0", "replacement": e.Replacement}
-			if boundary(e.Introduced) > target {
-				api.State = "FAIL"
-				api.Severity = "BLOCKER"
-				api.Reason = "API_NOT_YET_AVAILABLE"
-			} else if boundary(e.Removed) > 0 && target >= boundary(e.Removed) {
-				api.State = "FAIL"
-				api.Severity = "BLOCKER"
-				api.Reason = "API_REMOVED"
-				api.Details["removed"] = e.Removed
-			} else if boundary(e.Deprecated) > 0 && target >= boundary(e.Deprecated) {
-				api.State = "FAIL"
-				api.Severity = "WARNING"
-				api.Reason = "API_DEPRECATED"
-				api.Details["deprecated"] = e.Deprecated
-			}
-		}
+		api := lifecycleResult(e, known, scope, target, entries)
 		results = append(results, api)
 		switch r.Ref.Kind {
 		case "CustomResourceDefinition":
@@ -147,6 +126,21 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 	}
 	results = append(results, usageChecks(opts, entries, target)...)
 	results = append(results, check("runtime-validation", "inventory", "NOT_APPLICABLE", "INFO", "STATIC_CHECKS_DO_NOT_EXECUTE_ADMISSION_CEL_CONVERSION_OR_APPLICATIONS"))
+	resources := make(map[string]model.ResourceRef, len(inv.Resources))
+	for _, r := range inv.Resources {
+		resources[r.Ref.Key()] = r.Ref
+	}
+	for i := range results {
+		if ref, ok := resources[results[i].Scope]; ok {
+			if results[i].Details == nil {
+				results[i].Details = make(map[string]string)
+			}
+			results[i].Details["apiVersion"] = ref.APIVersion
+			results[i].Details["kind"] = ref.Kind
+			results[i].Details["namespace"] = ref.Namespace
+			results[i].Details["name"] = ref.Name
+		}
+	}
 	return results, nil
 }
 func check(domain, scope, state, severity, reason string) model.CheckResult {

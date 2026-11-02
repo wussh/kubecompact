@@ -11,3 +11,7 @@ Redistributed dependency license texts and copyright/NOTICE files are retained u
 - Official-source regression excerpts are synthetic/minimal attributed parser examples, described by `testdata/sources/official-regression.json`. They do not grant a license to redistribute arbitrary upstream documentation.
 
 The scanner's evidence cache is local operator output, not a shipped compatibility database. No Plural source or dataset is included. Official documentation/release pages remain subject to their upstream terms; retain source attribution when sharing extracted claim receipts.
+
+## Test-only lifecycle references
+
+The finite hand-reviewed facts in `internal/readiness/testdata/lifecycle-conformance.json` cite FairwindsOps/Pluto revision `9495152d614581a988e31414fa64e8b82474d956` (`versions.yaml`, Apache-2.0) and kubepug/kubepug revision `5a18f77bbd6cadd5ce2469cd98e142fbf0bae497` (`generator/deprecations/gen.go`, Apache-2.0). Their recorded input digests/source paths and official adjudications distinguish derived fixture facts from unmodified upstream artifacts. No upstream executable/library or full dataset is redistributed by this change; local source checkouts are ignored and not runtime inputs. The fixture is an adapted finite selection, not an upstream generated artifact. Retain attribution and the existing [Apache-2.0 license text](data/LICENSE-APACHE-2.0) with these test facts. No root NOTICE file was present in either pinned checkout; this is not a comprehensive legal review.

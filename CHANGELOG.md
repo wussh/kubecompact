@@ -2,6 +2,11 @@
 
 ## Unreleased — 2026-10-30
 
+- Preserve zero-component decisions, global findings, scope/details and coverage in a single typed CSV; keep formula escaping and full-assessment decisions under component filtering.
+- Add presentation-only installation/workload/running-image denominators and prioritized domain triage with inspectable IDs/details and bounded next-evidence text. Project safe resource identity from collected references without changing finding IDs, collection or runtime gates.
+- Add a pinned finite lifecycle conformance corpus and deterministic review-only Pluto comparison; document Kubepug's static field-contract limits, official adjudications, UNKNOWN historical coverage and intentional no-code usage-export condition. Target CLI remains Kubernetes 1.35.
+- Preserve producer-generated component-local findings in the full prefilter report collection, including an explicit complete top-level JSON check projection; deduplicate identical ID/scope records without discarding conflicts. Restrict healthy-coverage actions consistently across table/HTML and compare official/reference replacement-introduction boundaries in review reports.
+
 - Add the read-only KubeCompat development CLI: live/file/pinned HTTPS Git inputs, safe Helm/Kustomize rendering, management ownership/version observations, pinned Kubernetes 1.35 API/schema/static checks, fifteen compile-time source adapters, immutable SQLite evidence and portable reports.
 - Require independent authoritative support and exact release proof for upgrade candidates; chart-managed candidates also require an official matching chart/repository mapping. Unknown environment constraints remain conjunctive; release claims must match their own version range. Bounded release history does not establish latest-patch completeness.
 - Preserve input digests and renderer/source provenance even when inputs contain no workload component. Reopen untrusted render/dependency inputs through bounded no-escape reads.
