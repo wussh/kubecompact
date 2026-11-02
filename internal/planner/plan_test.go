@@ -627,7 +627,16 @@ func TestDeterministicAndNonMutating(t *testing.T) {
 func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
 	observed := testNow.Add(-2 * time.Hour)
 	postObserved := testNow.Add(-time.Hour)
-	build := func(postHopAt time.Time) model.UpgradePlan {
+	freshMembership := func() *model.OperatorReceipt {
+		item := receipt("complete-membership", "PASS")
+		return &item
+	}
+	staleMembership := func() *model.OperatorReceipt {
+		item := receipt("complete-membership", "PASS")
+		item.ValidUntil = testNow.Add(-time.Minute)
+		return &item
+	}
+	build := func(postHopAt time.Time, membership *model.OperatorReceipt) model.UpgradePlan {
 		inv := model.Inventory{
 			SchemaVersion: model.SchemaVersion,
 			Clusters: []model.ClusterObservation{{
@@ -653,6 +662,9 @@ func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
 			}
 			hop.Receipts = append(hop.Receipts, item)
 		}
+		if membership != nil {
+			hop.Receipts = append(hop.Receipts, *membership)
+		}
 		in := baseInput("1.34", "1.35")
 		in.Hops = []model.HopInput{hop}
 		evaluate := func(_ context.Context, _ model.Inventory, target string) (model.Assessment, error) {
@@ -663,20 +675,43 @@ func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
 					Component: model.Component{ID: "compatible-app", Name: "compatible-app"},
 					Verdict:   model.Compatible,
 				}},
+				Checks: []model.CheckResult{{
+					ID: "control-plane-conservative", Domain: "control-plane", Scope: "synthetic-lab",
+					State: "UNKNOWN", Severity: "WARNING", Reason: "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED",
+				}},
 			}, nil
 		}
 		return mustBuild(t, in, "1.34", "1.35", evaluate)
 	}
 
-	complete := build(postObserved)
+	missing := build(postObserved, nil)
+	if missing.ExitCode != 3 || missing.Decision != "INCOMPLETE" {
+		t.Fatalf("missing membership attestation plan=%s/%d", missing.Decision, missing.ExitCode)
+	}
+	if !hasCheck(missing.Hops[0].Assessment, "control-plane", "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED") {
+		t.Fatal("missing complete-membership receipt did not stay UNKNOWN")
+	}
+
+	stale := build(postObserved, staleMembership())
+	if stale.ExitCode != 3 || !hasCheck(stale.Hops[0].Assessment, "control-plane", "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED") {
+		t.Fatalf("stale membership attestation did not stay UNKNOWN: %s/%d", stale.Decision, stale.ExitCode)
+	}
+
+	complete := build(postObserved, freshMembership())
 	if complete.ExitCode != 0 || complete.Decision != "NO_KNOWN_BLOCKERS" {
 		t.Fatalf("fully attested plan=%s/%d checks=%+v", complete.Decision, complete.ExitCode, complete.Hops[0].Assessment.Checks)
+	}
+	if !hasCheck(complete.Hops[0].Assessment, "control-plane", "PASS", "CONTROL_PLANE_MEMBERSHIP_OPERATOR_ATTESTED") {
+		t.Fatal("fresh complete-membership receipt did not replace the shared UNKNOWN")
+	}
+	if hasCheck(complete.Hops[0].Assessment, "control-plane", "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED") {
+		t.Fatal("shared conservative UNKNOWN was not replaced")
 	}
 	if !hasCheck(complete.Hops[0].Assessment, "plan-completion-boundary", "PASS", "CURRENT_OPERATOR_POST_HOP_HEALTH") {
 		t.Fatal("complete post-hop receipt did not reach PASS")
 	}
 
-	preObservation := build(observed.Add(-time.Hour))
+	preObservation := build(observed.Add(-time.Hour), freshMembership())
 	if preObservation.ExitCode != 3 || preObservation.Decision != "INCOMPLETE" {
 		t.Fatalf("pre-observation post-hop plan=%s/%d", preObservation.Decision, preObservation.ExitCode)
 	}
@@ -684,7 +719,7 @@ func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
 		t.Fatal("pre-observation post-hop receipt incorrectly reached PASS")
 	}
 
-	equal := build(observed)
+	equal := build(observed, freshMembership())
 	if !hasCheck(equal.Hops[0].Assessment, "plan-completion-boundary", "PASS", "CURRENT_OPERATOR_POST_HOP_HEALTH") || equal.ExitCode != 0 {
 		t.Fatalf("equal-time post-hop receipt did not remain PASS: %s/%d", equal.Decision, equal.ExitCode)
 	}

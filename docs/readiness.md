@@ -27,7 +27,7 @@ Lifecycle check `details` retain the catalog replacement and project its target 
 
 Checks inspect CRD served/storage/storedVersions and conversion Service references; APIService availability; admission review versions, rules and service availability; Service/EndpointSlice relationships; PDB disruption observations; workload generation/readiness; target node skew and direct control-plane upgrade distance. PDB findings concern worker disruption, not proof a control-plane-only operation drains nodes.
 
-No admission/conversion webhook, CEL expression, server dry-run or application code is executed. No drain, upgrade, exec, metrics scrape or audit-log configuration occurs. A single server version does not prove the versions/health of every control-plane member. Missing observations stay UNKNOWN.
+No admission/conversion webhook, CEL expression, server dry-run or application code is executed. No drain, upgrade, exec, metrics scrape or audit-log configuration occurs. A single server version does not prove the versions/health of every control-plane member, and a supplied node list is not proof of complete membership; readiness keeps control-plane completeness UNKNOWN. Missing observations stay UNKNOWN.
 
 Optional deprecated-client request summaries are bounded to 1 MiB and a caller-supplied start/end interval. They distinguish absent/incomplete input, APIs outside catalog coverage, deprecated requests and requests to removed APIs. A removed request is a BLOCKER even when inventory is empty. A complete zero-request interval certifies only the supplied observation window, not all historical or future clients.
 

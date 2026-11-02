@@ -112,7 +112,7 @@ func TestTargetPatchIsExplicit(t *testing.T) {
 	}
 }
 
-func TestControlPlaneObservationGate(t *testing.T) {
+func TestControlPlaneObservationStaysUnknown(t *testing.T) {
 	cases := []struct {
 		name    string
 		version string
@@ -120,10 +120,10 @@ func TestControlPlaneObservationGate(t *testing.T) {
 		state   string
 		reason  string
 	}{
-		{"complete observation", "v1.34.1", []model.NodeObservation{
+		{"complete-looking observation still unproven", "v1.34.1", []model.NodeObservation{
 			{Name: "s1", KubeletVersion: "v1.34.1", ControlPlane: true, Ready: true},
 			{Name: "a1", KubeletVersion: "v1.34.1", Ready: true},
-		}, "PASS", "CONTROL_PLANE_MEMBERS_OBSERVED"},
+		}, "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED"},
 		{"no node observations", "v1.34.1", nil, "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED"},
 		{"no server observation", "v1.34.1", []model.NodeObservation{
 			{Name: "a1", KubeletVersion: "v1.34.1", Ready: true},

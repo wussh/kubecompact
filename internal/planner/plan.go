@@ -213,6 +213,7 @@ func buildHop(ctx context.Context, in model.PlanInput, releases map[int]string, 
 	} else {
 		membershipChecks(&assessment, h, in.ClusterID, scope, from, to, now)
 	}
+	membershipAttestation(&assessment, h, scope, now)
 	for _, kind := range []string{"backup", "restore-drill", "token-custody", "configuration-preserved"} {
 		receiptCheck(&assessment, h, scope, kind, now)
 	}
@@ -242,6 +243,37 @@ func datastoreCheck(a *model.Assessment, h model.HopInput, scope string, now tim
 		}
 	}
 	a.Checks = append(a.Checks, checked(scope, "datastore", "PASS", "DATASTORE_BACKUP_METHOD_MATCHES_OBSERVED_KIND"))
+}
+
+// membershipAttestation replaces only the shared conservative control-plane
+// UNKNOWN when an explicit, current operator receipt asserts complete
+// membership. The scanner itself never infers completeness from a partial list.
+func membershipAttestation(a *model.Assessment, h model.HopInput, scope string, now time.Time) {
+	for _, receipt := range h.Receipts {
+		if receipt.Kind != "complete-membership" {
+			continue
+		}
+		if receipt.Status != "PASS" || !current(receipt, now) {
+			return
+		}
+		for i := range a.Checks {
+			if a.Checks[i].Domain != "control-plane" || a.Checks[i].Reason != "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED" {
+				continue
+			}
+			result := checked(scope, "control-plane", "PASS", "CONTROL_PLANE_MEMBERSHIP_OPERATOR_ATTESTED")
+			result.Domain = "control-plane"
+			result.EvidenceIDs = []string{receipt.EvidenceID}
+			result.Details = map[string]string{
+				"authority":  "operator-attestation",
+				"owner":      receipt.Owner,
+				"observedAt": formatTime(receipt.ObservedAt),
+				"validUntil": formatTime(receipt.ValidUntil),
+			}
+			a.Checks[i] = result
+			return
+		}
+		return
+	}
 }
 
 func isDatastoreReceipt(kind string) bool {
@@ -642,7 +674,8 @@ func validateHop(h model.HopInput) error {
 	allowed := map[string]bool{
 		"backup": true, "restore-drill": true, "token-custody": true,
 		"configuration-preserved": true, "post-hop-health": true,
-		"sqlite-backup": true, "etcd-snapshot": true, "external-db-owner-backup": true,
+		"complete-membership": true,
+		"sqlite-backup":       true, "etcd-snapshot": true, "external-db-owner-backup": true,
 	}
 	seen = make(map[string]bool, len(h.Receipts))
 	for _, receipt := range h.Receipts {
