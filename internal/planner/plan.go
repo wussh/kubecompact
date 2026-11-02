@@ -253,7 +253,7 @@ func membershipAttestation(a *model.Assessment, h model.HopInput, scope string, 
 		if receipt.Kind != "complete-membership" {
 			continue
 		}
-		if receipt.Status != "PASS" || !current(receipt, now) {
+		if receipt.Status != "PASS" || !current(receipt, now) || receipt.ObservedAt.Before(h.ObservedAt) {
 			return
 		}
 		for i := range a.Checks {

@@ -627,14 +627,16 @@ func TestDeterministicAndNonMutating(t *testing.T) {
 func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
 	observed := testNow.Add(-2 * time.Hour)
 	postObserved := testNow.Add(-time.Hour)
-	freshMembership := func() *model.OperatorReceipt {
+	membershipAt := func(at time.Time) *model.OperatorReceipt {
 		item := receipt("complete-membership", "PASS")
+		item.ObservedAt = at
 		return &item
 	}
+	freshMembership := func() *model.OperatorReceipt { return membershipAt(testNow.Add(-time.Hour)) }
 	staleMembership := func() *model.OperatorReceipt {
-		item := receipt("complete-membership", "PASS")
+		item := membershipAt(testNow.Add(-time.Hour))
 		item.ValidUntil = testNow.Add(-time.Minute)
-		return &item
+		return item
 	}
 	build := func(postHopAt time.Time, membership *model.OperatorReceipt) model.UpgradePlan {
 		inv := model.Inventory{
@@ -695,6 +697,16 @@ func TestFullyAttestedHopReachesPlanZero(t *testing.T) {
 	stale := build(postObserved, staleMembership())
 	if stale.ExitCode != 3 || !hasCheck(stale.Hops[0].Assessment, "control-plane", "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED") {
 		t.Fatalf("stale membership attestation did not stay UNKNOWN: %s/%d", stale.Decision, stale.ExitCode)
+	}
+
+	predating := build(postObserved, membershipAt(observed.Add(-time.Minute)))
+	if predating.ExitCode != 3 || !hasCheck(predating.Hops[0].Assessment, "control-plane", "UNKNOWN", "CONTROL_PLANE_MEMBERS_NOT_FULLY_OBSERVED") {
+		t.Fatalf("predating membership attestation did not stay UNKNOWN: %s/%d", predating.Decision, predating.ExitCode)
+	}
+
+	equalMembership := build(postObserved, membershipAt(observed))
+	if equalMembership.ExitCode != 0 || !hasCheck(equalMembership.Hops[0].Assessment, "control-plane", "PASS", "CONTROL_PLANE_MEMBERSHIP_OPERATOR_ATTESTED") {
+		t.Fatalf("equal-time membership attestation did not PASS: %s/%d", equalMembership.Decision, equalMembership.ExitCode)
 	}
 
 	complete := build(postObserved, freshMembership())
