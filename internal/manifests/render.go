@@ -269,10 +269,15 @@ func chartCRDs(ch chart.Charter) []inputDocument {
 	return out
 }
 func targetCapabilities(target string, kv common.KubeVersion) (*common.Capabilities, error) {
-	if target != "1.35" && target != "1.35.0" && target != "v1.35" && target != "v1.35.0" {
-		return nil, errors.New("renderer API catalog covers Kubernetes 1.35.0 only")
+	resolved := strings.TrimPrefix(target, "v")
+	if resolved == "1.33" || resolved == "1.34" || resolved == "1.35" {
+		resolved += ".0"
 	}
-	schemas, err := data.Schemas()
+	dataset, err := data.ForTarget(resolved)
+	if err != nil {
+		return nil, errors.New("renderer API catalog target unsupported")
+	}
+	schemas, err := dataset.Schemas()
 	if err != nil {
 		return nil, errors.New("target capabilities unavailable")
 	}

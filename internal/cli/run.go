@@ -78,7 +78,8 @@ func help(w io.Writer) {
 Commands:
   scan      Collect live cluster or local/Git manifest inventory
   check     Evaluate inventory against --target-k8s using cached or online evidence
-  report    Render --input assessment.json, or collect and evaluate
+  plan      Build an offline read-only K3s per-hop plan from sanitized input
+  report    Render --input assessment.json or upgrade-plan.json, or collect and evaluate
   db update Refresh official compatibility evidence (no cluster access)
   version   Print scanner and schema versions
 
@@ -96,25 +97,11 @@ func validTarget(s string) bool {
 	return err == nil && v.Major() == 1 && v.Minor() >= 16 && v.Prerelease() == "" && strings.Count(strings.TrimPrefix(s, "v"), ".") >= 1
 }
 func readJSON(path string, dest any) error {
-	file, err := os.Open(path)
+	data, _, err := readBounded(path)
 	if err != nil {
-		return errors.New("input file unavailable")
+		return err
 	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Size() > 64<<20 {
-		return errors.New("input must be a regular file within 64 MiB")
-	}
-	d := json.NewDecoder(io.LimitReader(file, 64<<20))
-	d.DisallowUnknownFields()
-	if err := d.Decode(dest); err != nil {
-		return errors.New("invalid input JSON or schema")
-	}
-	var extra any
-	if err := d.Decode(&extra); err != io.EOF {
-		return errors.New("multiple JSON documents are not supported")
-	}
-	return nil
+	return decodeStrict(data, dest)
 }
 func output(w io.Writer, path string, write func(io.Writer) error) error {
 	if path == "" || path == "-" {
@@ -262,6 +249,11 @@ func assess(ctx context.Context, f flags) (model.Assessment, error) {
 	if err != nil {
 		return model.Assessment{}, err
 	}
+	return assessInventory(ctx, f, inv)
+}
+
+func assessInventory(ctx context.Context, f flags, inv model.Inventory) (model.Assessment, error) {
+	var err error
 	var rules []model.Rule
 	var sourceCoverage []model.Coverage
 	if !f.online {
@@ -313,6 +305,9 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if args[0] == "version" {
 		fmt.Fprintf(stdout, "kubecompat %s; schema %s\n", model.Version, model.SchemaVersion)
 		return 0
+	}
+	if args[0] == "plan" {
+		return runPlan(ctx, args[1:], stdout, stderr)
 	}
 	command := args[0]
 	rest := args[1:]
@@ -482,7 +477,33 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	var a model.Assessment
 	if f.input != "" {
-		if err := readJSON(f.input, &a); err != nil {
+		raw, _, err := readBounded(f.input)
+		if err != nil {
+			return fail(1, "invalid saved input")
+		}
+		var probe struct {
+			SchemaVersion string `json:"schemaVersion"`
+		}
+		if json.Unmarshal(raw, &probe) != nil {
+			return fail(1, "invalid saved input")
+		}
+		if probe.SchemaVersion == model.PlanSchema {
+			var plan model.UpgradePlan
+			if err := decodeStrict(raw, &plan); err != nil {
+				return fail(1, "invalid saved upgrade plan")
+			}
+			if f.check.TargetKubernetes != "" && f.check.TargetKubernetes != plan.TargetKubernetes {
+				return fail(1, "report target differs from saved upgrade plan")
+			}
+			// A saved plan renders independently of its stored gate, like an assessment.
+			if err := output(stdout, f.output, func(w io.Writer) error {
+				return report.WritePlan(w, plan, f.format, f.filters)
+			}); err != nil {
+				return fail(4, "cannot write upgrade plan report")
+			}
+			return 0
+		}
+		if err := decodeStrict(raw, &a); err != nil {
 			return fail(1, "invalid saved assessment")
 		}
 		if a.SchemaVersion != model.SchemaVersion {

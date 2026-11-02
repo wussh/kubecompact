@@ -29,7 +29,15 @@ func TestPinnedLifecycleConformance(t *testing.T) {
 	if err = json.Unmarshal(raw, &corpus); err != nil {
 		t.Fatal(err)
 	}
-	sum := sha256.Sum256(data.Lifecycle())
+	dataset, err := data.ForTarget("1.35.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lifecycle, err := dataset.Lifecycle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(lifecycle)
 	if hex.EncodeToString(sum[:]) != corpus.OfficialDigest {
 		t.Fatal("official catalog changed: regenerate and review additions/removals/conflicts, do not silently repin")
 	}
@@ -40,7 +48,7 @@ func TestPinnedLifecycleConformance(t *testing.T) {
 		SourceRevision string
 		Entries        []lifecycleEntry
 	}
-	if err = json.Unmarshal(data.Lifecycle(), &catalog); err != nil {
+	if err = json.Unmarshal(lifecycle, &catalog); err != nil {
 		t.Fatal(err)
 	}
 	if catalog.SourceRevision != corpus.OfficialRevision {

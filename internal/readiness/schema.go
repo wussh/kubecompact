@@ -29,7 +29,15 @@ func schemaName(kind, api string) string {
 	return strings.ToLower(kind + "-" + suffix + ".json")
 }
 func schemaChecks(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([]model.CheckResult, error) {
-	schemas, err := data.Schemas()
+	resolved, err := ResolveTarget(opts.TargetKubernetes)
+	if err != nil {
+		return nil, err
+	}
+	dataset, err := data.ForTarget(resolved)
+	if err != nil {
+		return nil, err
+	}
+	schemas, err := dataset.Schemas()
 	if err != nil {
 		return nil, errors.New("embedded schema integrity failed")
 	}
@@ -71,7 +79,7 @@ func schemaChecks(ctx context.Context, inv model.Inventory, opts model.CheckOpti
 		}
 		scope := r.Ref.Key()
 		result := check("schema", scope, "UNKNOWN", "WARNING", "RAW_DOCUMENT_UNAVAILABLE")
-		result.Details = map[string]string{"schemaTarget": "1.35.0", "validator": "kubeconform/0.8.0", "sourceRevision": schemaSourceRevision}
+		result.Details = map[string]string{"schemaTarget": resolved, "validator": "kubeconform/0.8.0", "sourceRevision": schemaSourceRevision}
 		api := r.Ref.APIVersion
 		key := api + "/" + r.Ref.Kind + "/" + r.Ref.Namespace + "/" + r.Ref.Name
 		o, ok := objects[key]
@@ -85,7 +93,13 @@ func schemaChecks(ctx context.Context, inv model.Inventory, opts model.CheckOpti
 			b = raw
 			result.Details["schemaSource"] = "observed matching CRD served version"
 		} else if opts.SchemaPath != "" {
-			b, err = readLocalSchema(opts.SchemaPath, name)
+			b, err = readLocalSchema(opts.SchemaPath, name, resolved)
+			if err == nil {
+				embedded := schemas[name]
+				if len(embedded) == 0 || sha256.Sum256(b) != sha256.Sum256(embedded) {
+					err = errors.New("local schema does not match target provenance")
+				}
+			}
 			if err != nil {
 				result.Reason = "LOCAL_SCHEMA_UNAVAILABLE"
 				results = append(results, result)
@@ -110,7 +124,7 @@ func schemaChecks(ctx context.Context, inv model.Inventory, opts model.CheckOpti
 		if os.WriteFile(path, b, 0600) != nil {
 			return nil, errors.New("schema staging failed")
 		}
-		val, e := validator.New([]string{path}, validator.Opts{KubernetesVersion: "1.35.0", Strict: true})
+		val, e := validator.New([]string{path}, validator.Opts{KubernetesVersion: resolved, Strict: true})
 		if e != nil {
 			result.Reason = "SCHEMA_UNSUPPORTED"
 			results = append(results, result)
@@ -175,7 +189,7 @@ func localReferences(v any) bool {
 	}
 	return true
 }
-func readLocalSchema(root, name string) ([]byte, error) {
+func readLocalSchema(root, name, target string) ([]byte, error) {
 	if filepath.Base(name) != name {
 		return nil, errors.New("invalid schema name")
 	}
@@ -187,7 +201,7 @@ func readLocalSchema(root, name string) ([]byte, error) {
 	if err != nil || real != abs {
 		return nil, errors.New("schema symlink forbidden")
 	}
-	p := filepath.Join(abs, "v1.35.0-standalone-strict", name)
+	p := filepath.Join(abs, "v"+target+"-standalone-strict", name)
 	info, err := os.Lstat(p)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > 8<<20 {
 		return nil, errors.New("schema unavailable")
@@ -202,16 +216,25 @@ func readLocalSchema(root, name string) ([]byte, error) {
 // AcquireSchemas refreshes the exact pinned bundle only, never a mutable master.
 // The caller must explicitly supply an online policy-enforcing fetcher.
 func AcquireSchemas(ctx context.Context, f fetch.Fetcher, dir, target string) error {
-	if _, err := targetMinor(target); err != nil {
+	resolved, err := ResolveTarget(target)
+	if err != nil {
+		return err
+	}
+	dataset, err := data.ForTarget(resolved)
+	if err != nil {
+		return err
+	}
+	provenance, err := dataset.Provenance()
+	if err != nil {
 		return err
 	}
 	var p struct {
 		Schemas map[string]string `json:"schemas"`
 	}
-	if json.Unmarshal(data.Provenance(), &p) != nil {
+	if json.Unmarshal(provenance, &p) != nil {
 		return errors.New("schema provenance invalid")
 	}
-	dest := filepath.Join(dir, "v1.35.0-standalone-strict")
+	dest := filepath.Join(dir, "v"+resolved+"-standalone-strict")
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		return errors.New("schema cache unavailable")
 	}
@@ -219,7 +242,7 @@ func AcquireSchemas(ctx context.Context, f fetch.Fetcher, dir, target string) er
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		snapshot, err := f.Fetch(ctx, fetch.SourceRequest{URL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/" + schemaSourceRevision + "/v1.35.0-standalone-strict/" + name, Project: "kubernetes", ParserID: "schema-bundle", ParserVersion: "1"})
+		snapshot, err := f.Fetch(ctx, fetch.SourceRequest{URL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/" + schemaSourceRevision + "/v" + resolved + "-standalone-strict/" + name, Project: "kubernetes", ParserID: "schema-bundle", ParserVersion: "1"})
 		if err != nil {
 			return errors.New("schema download unavailable")
 		}
@@ -249,5 +272,5 @@ func AcquireSchemas(ctx context.Context, f fetch.Fetcher, dir, target string) er
 			return errors.New("schema cache write failed")
 		}
 	}
-	return os.WriteFile(filepath.Join(dir, "provenance.json"), data.Provenance(), 0600)
+	return os.WriteFile(filepath.Join(dest, "provenance.json"), provenance, 0600)
 }

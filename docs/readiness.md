@@ -4,12 +4,20 @@ Readiness findings do not set a component's documented runtime-support verdict. 
 
 ## Pinned target data
 
-Only Kubernetes 1.35 / 1.35.0 is currently accepted. Minor requests resolve to schema patch 1.35.0, recorded as `resolvedTarget`. Other minors and exact patches fail before collection; there is no default master/latest schema.
+Exactly Kubernetes **1.33, 1.34 and 1.35** are accepted. `1.N`, `v1.N`, `1.N.0` and `v1.N.0` resolve to the strict schema patch `1.N.0`, recorded as `resolvedTarget`. Other minors, exact patches after `.0`, prereleases and suffixes fail before collection. There is no fallback to 1.35, no default master/latest schema and no inferred target from a distribution release.
 
-- API catalog: `data/api-lifecycle.json`, generated from Kubernetes API v0.35.0 source revision `9afe7de0a56c582b06ca094f7309015bc84657a7`, with per-entry upstream lifecycle-source URLs and replacements.
-- Explicit CRD/APIService and Endpoints policy entries supplement generated metadata. Endpoints deprecation at 1.33 is not API removal.
-- 726 strict standalone schema files: Kubernetes 1.35.0, kubernetes-json-schema revision `7464e8eb55dab7063a4e6cb6cd6e2ed19f399580`. `data/schemas/provenance.json` records the bundle and individual content hashes. Apache-2.0 notices are retained under `data/`.
-- Kubeconform v0.8.0 validates only staged, explicitly selected local schemas in strict mode. Normal checks have no schema HTTP fallback. External references and schema ID redirection are rejected.
+| Target | Lifecycle source (Kubernetes API) | Strict schema files | Bundle SHA256 |
+| --- | --- | --- | --- |
+| 1.33.0 | `v0.33.0` commit `82c0029eaa2f5bdbfbbbce9305349a893e6c86dc` | 698 | `453c52378dab91a54eb09657eb45564dd4ba30fa55f4c42a01ff225e4d715ecc` |
+| 1.34.0 | `v0.34.0` commit `ae6c3b911ef17a4e2b10922c745c6f35bcf9b78e` | 721 | `720756beb922c2ed5f834fef4dc818f195314eec5e4d8b3b1114f205fc31350e` |
+| 1.35.0 | existing `v0.35.0` lifecycle pin `9afe7de0a56c582b06ca094f7309015bc84657a7` | 726 | existing pinned bundle, unchanged |
+
+- API catalogs: `data/api-lifecycle-1.33.0.json`, `data/api-lifecycle-1.34.0.json` and the existing 1.35 catalog, each with per-entry upstream lifecycle-source URLs and replacements, Apache-2.0 license and immutable source revision. Explicit CRD/APIService and Endpoints policy entries supplement generated metadata; Endpoints deprecation at 1.33 is not API removal.
+- Strict schemas: `data/schemas/kubernetes-1.33.0.json.gz.b64` and `kubernetes-1.34.0.json.gz.b64`, selected from kubernetes-json-schema revision `7464e8eb55dab7063a4e6cb6cd6e2ed19f399580`. Matching `provenance-1.33.0.json` / `provenance-1.34.0.json` records the target, upstream source, complete selected-file inventory digest, bundle digest and every selected content hash. The existing 1.35 catalog, provenance and both licenses are byte-identical to the baseline.
+- Each target is lazily loaded and integrity-checked at most once. A corrupt, wrong-target or over-limit bundle fails that target only; it never falls back to another dataset. Returned schema maps are read-only to callers.
+- Kubeconform v0.8.0 validates only staged, explicitly selected local schemas in strict mode with the resolved target version. Normal checks have no schema HTTP fallback. External references and schema ID redirection are rejected. Local schema directories must contain the matching `v1.N.0-standalone-strict` tree and an exact content match with the embedded target bundle.
+
+Lifecycle and schema availability is static API readiness, not runtime support for the exact distribution patch. A K3s release identity is separate from the upstream schema patch: for example, the first K3s 1.34 release (`v1.34.1+k3s1`) is compared against the pinned 1.34.0 schema catalog, so exact-patch coverage remains UNKNOWN rather than being inferred. The read-only plan in [usage](usage.md#upgrade-plan) keeps this distinction explicit.
 
 Custom resources use the matching observed CRD served-version schema; a missing/mismatched schema remains UNKNOWN. Unknown catalog kinds are not presumed available. Schema errors are sanitized reason codes, never raw confidential values. Saved inventories omit raw documents/schemas and therefore cannot reproduce schema validation; use original files or explicit live `check` when required.
 
@@ -29,7 +37,7 @@ The actual CLI returned exit 2 for `testdata/readiness/removed.yaml` at target 1
 
 ## Finite lifecycle conformance references
 
-`internal/readiness/testdata/lifecycle-conformance.json` is a hand-reviewed, finite facts corpus, not a second engine or a replacement catalog. It pins official Kubernetes source/catalog digest, Pluto `9495152d614581a988e31414fa64e8b82474d956` (`versions.yaml`) and Kubepug `5a18f77bbd6cadd5ce2469cd98e142fbf0bae497` (`generator/deprecations/gen.go`), input SHA256s and generator revision `lifecycle-conformance/v1`. Upstream URLs are `https://github.com/FairwindsOps/pluto` and `https://github.com/kubepug/kubepug`. Pure evaluator cases cover introduced, deprecated/served, before/at removal, replacement availability and no replacement; CLI targets remain 1.35 only.
+`internal/readiness/testdata/lifecycle-conformance.json` is a hand-reviewed, finite facts corpus, not a second engine or a replacement catalog. It pins official Kubernetes source/catalog digest, Pluto `9495152d614581a988e31414fa64e8b82474d956` (`versions.yaml`) and Kubepug `5a18f77bbd6cadd5ce2469cd98e142fbf0bae497` (`generator/deprecations/gen.go`), input SHA256s and generator revision `lifecycle-conformance/v1`. Upstream URLs are `https://github.com/FairwindsOps/pluto` and `https://github.com/kubepug/kubepug`. Pure evaluator cases cover introduced, deprecated/served, before/at removal, replacement availability and no replacement against the pinned 1.35 catalog; the conformance corpus does not by itself broaden or approve target CLI minors.
 
 Pluto supplies no introduced field. Kubepug is a **static generator-contract reference**, not an executed generated dataset: its `APIDeprecation` fields are introduced/deprecated/removed/replacement, with no replacement-availability field. Replacement availability is independently joined to the official replacement GVK introduced boundary; it is not attributed to Kubepug. Current official v0.35 coverage omits PodSecurityPolicy, so its Pluto historical entry remains UNKNOWN rather than being inserted into runtime data. DeploymentRollback has no replacement function and no Pluto exact-GVK overlap. Pluto's extensions Deployment deprecation 1.9 conflicts with official generated metadata 1.8: the pinned official lifecycle tags adjudicate 1.8; GA/replacement availability is not deprecation timing. Official adjudication: `https://kubernetes.io/docs/reference/using-api/deprecation-guide/`, plus each catalog entry's immutable source URL.
 

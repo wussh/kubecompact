@@ -175,10 +175,14 @@ func decode(doc inputDocument) ([]map[string]any, []model.Diagnostic) {
 	dec := yaml.NewDecoder(bytes.NewReader(doc.body))
 	var out []map[string]any
 	var ds []model.Diagnostic
-	for n := 1; n <= maxFiles; n++ {
+	for n := 1; n <= maxFiles+1; n++ {
 		var node yaml.Node
 		err := dec.Decode(&node)
 		if err == io.EOF {
+			break
+		}
+		if n > maxFiles {
+			ds = append(ds, model.Diagnostic{Code: "DOCUMENT_LIMIT_EXCEEDED", Scope: fmt.Sprintf("%s#%d", filepath.Base(doc.name), n), Message: "Document limit exceeded; input was not fully loaded"})
 			break
 		}
 		scope := fmt.Sprintf("%s#%d", filepath.Base(doc.name), n)

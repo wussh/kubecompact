@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 2026-11-02
+
+- Qualify Kubernetes 1.33, 1.34 and 1.35 with individually pinned lifecycle catalogs and strict schema bundles while preserving 1.35 bytes. Selection is explicit per target, lazily verified and never falls back; `resolvedTarget` stays separate from exact distribution release identity.
+- Add the read-only, strictly offline K3s `plan` command: adjacent 1.32→1.35 hops, supplied sanitized per-hop inventories, server-first one-at-a-time ordering, HA/kubelet skew, datastore-specific backup and operator-receipt gates with explicit freshness, blocker dominance and required UNKNOWNs for missing future evidence. No execution, drain, upgrade, restore or rollback path exists.
+- Add schema-validated saved-plan `report --input` dispatch and full JSON/CSV/table/HTML plan rendering with named CSV columns, per-hop decisions and stop conditions. HTML is self-contained with in-document hop sections instead of iframes; filters never change plan or hop gates.
+- Pin only the reviewed K3s release identities `v1.33.0+k3s1`, `v1.34.1+k3s1` and `v1.35.0+k3s1`; an unpinned source such as optional 1.32 remains UNKNOWN instead of being invented. The exact-patch/schema-patch distinction is explicit.
+
 ## Unreleased — 2026-10-30
 
 - Preserve zero-component decisions, global findings, scope/details and coverage in a single typed CSV; keep formula escaping and full-assessment decisions under component filtering.

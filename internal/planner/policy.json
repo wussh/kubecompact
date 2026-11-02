@@ -1,0 +1,21 @@
+{
+  "revision": "911393ceaf029778b356593cc8b6fab977293e96",
+  "sources": {
+    "https://github.com/k3s-io/docs/blob/911393ceaf029778b356593cc8b6fab977293e96/docs/upgrades/manual.md": "ea07957b86def3c106e9180a411094e5d2a63f4a117910ffd509c849538c832f",
+    "https://github.com/k3s-io/docs/blob/911393ceaf029778b356593cc8b6fab977293e96/docs/datastore/backup-restore.md": "e6346ee268510aac6286f405654c9d399ca18d4fb404509aaca603fa63ab84ae"
+  },
+  "releases": {
+    "v1.33.0+k3s1": {
+      "tagRef": "63ab8e534cdfce2a60f4b016dfedb4f8d74ae8ec",
+      "source": "https://github.com/k3s-io/k3s/releases/tag/v1.33.0%2Bk3s1"
+    },
+    "v1.34.1+k3s1": {
+      "tagRef": "24fc436e6ea59c56ebc37727baa4e6c9a201ee01",
+      "source": "https://github.com/k3s-io/k3s/releases/tag/v1.34.1%2Bk3s1"
+    },
+    "v1.35.0+k3s1": {
+      "tagRef": "a6c6cd15c0c42ec9fce21f8ad5f42aa74fddb4f2",
+      "source": "https://github.com/k3s-io/k3s/releases/tag/v1.35.0%2Bk3s1"
+    }
+  }
+}

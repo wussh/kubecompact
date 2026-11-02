@@ -13,7 +13,7 @@ func lifecycleResult(e lifecycleEntry, known bool, scope string, target int, ent
 		return api
 	}
 	api.State, api.Severity, api.Reason = "PASS", "INFO", "API_AVAILABLE_AT_TARGET"
-	api.Details = map[string]string{"source": e.Source, "catalog": "kubernetes-api-v0.35.0", "replacement": e.Replacement}
+	api.Details = map[string]string{"source": e.Source, "replacement": e.Replacement}
 	api.Details["replacementAvailable"] = "not-applicable"
 	if e.Replacement != "" {
 		api.Details["replacementAvailable"] = "unknown"

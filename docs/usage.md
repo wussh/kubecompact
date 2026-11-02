@@ -39,7 +39,7 @@ bin/kubecompat check --manifests testdata/readiness/removed.yaml --target-k8s 1.
 
 Offline evidence evaluation is the default. `--online` explicitly permits reviewed source requests; it does not transmit inventory, manifests or cluster credentials. `db update` is online by default and reports each source failure while retaining prior good records. A successful release-metadata fetch does not imply that the project's support matrix was available: inspect every coverage entry, including PARTIAL entries.
 
-The current API/schema catalog supports only `1.35`, `v1.35`, `1.35.0` and `v1.35.0`; minor input resolves to recorded schema patch `1.35.0`. Other targets are rejected before collection. Final-target support does not prove a supported direct or intermediate upgrade sequence.
+The current API/schema catalog supports `1.33`, `1.34` and `1.35`, including their `v`-prefixed and patch-`0` forms; each minor resolves to the recorded strict schema patch `1.N.0`. Other minors and exact patches after `.0` are rejected before collection. There is no fallback to another target and no master/latest lookup. Final-target support does not prove a supported direct or intermediate upgrade sequence.
 
 Use manifest/live `check` when schema validation matters. Saved sanitized inventory deliberately omits raw documents and CRD schemas; schema checks from saved inventory report `RAW_DOCUMENT_UNAVAILABLE`, never an invented pass. Live GETs do not recover the API versions used by historical clients.
 
@@ -52,6 +52,23 @@ Optional `--deprecated-usage FILE` accepts existing aggregated JSON, not raw aud
 ```
 
 Findings apply only to that supplied observation interval. Missing/incomplete input is UNKNOWN. No audit logging is enabled and no logs or metrics are scraped.
+
+## Upgrade plan
+
+```sh
+KUBECONFIG=/nonexistent bin/kubecompat plan --from-k8s 1.33 --target-k8s 1.35 --distribution k3s \
+  --plan-input plan-input.json --offline --cache evidence/evidence.db \
+  --format json --output upgrade-plan.json
+bin/kubecompat report --input upgrade-plan.json --format html --output upgrade-plan.html
+```
+
+`plan` is a strictly offline, read-only K3s proposal. It accepts source minor `1.32`, `1.33` or `1.34` and a supported strictly greater target minor, and generates every adjacent intermediate hop. Source `1.32` is observation-only, not a supported `check` target: its adjacent `1.32`→`1.33` hop, prerequisites, steps and stop conditions are still emitted, but without a pinned exact `1.32` release identity the source provenance stays UNVERIFIED/UNKNOWN and the plan exits 3. `--distribution` accepts only `k3s`. There is no `--online`, live/Git/manifest/Helm collection, credential/CA/allow-host/refresh or auto-latest flag; unknown or forbidden flags fail before input collection. It reads only `--plan-input`, explicitly referenced bounded sanitized inventories and the local evidence cache.
+
+Plan input is versioned `kubecompat.io/plan-input/v1alpha1` with a cluster ID, source observation time, exact source K3s release, destination releases by minor and optional per-hop sanitized evidence: exact from/to releases, relative inventory file plus SHA256, observedAt/validUntil with an evidence owner, datastore kind, server identities, proposed member order and bounded operator receipts. Inventory paths must stay inside the plan-input directory, reject symlink escape and match the supplied digest. Receipts carry only kind, status, owner, observation/validity times, evidence ID and bounded safe notes; commands, tokens, credentials, backup payloads and raw manifests are not accepted.
+
+The plan emits every ordered hop with prerequisites, descriptive server-first one-at-a-time steps (agents only after all servers), conditional dependencies and explicit stop conditions. An unpinned source `1.32`, missing future inventory/release provenance or missing/stale receipts remain required UNKNOWNs and exit 3; a known blocker dominates with exit 2; malformed/conflicting input exits 1; and unavailable referenced inventory, cache failure or output failure exits 4. A supplied exact release not pinned in the reviewed policy remains unverified rather than being guessed. The plan never fabricates future member versions, never rewrites the supplied inventory and never claims rollback success. No execution, drain, restart, snapshot, upgrade or rollback command exists.
+
+Saved plan output is dispatched by schema: `report --input upgrade-plan.json` validates `kubecompat.io/upgrade-plan/v1alpha1`, rejects assessment JSON and returns rendering exit 0 like a saved assessment. The stored plan and hop decisions remain in the output. Plan CSV uses the ordinary assessment columns plus `plan_decision`, `plan_exit_code`, `hop_id`, `hop_decision` and `hop_exit_code`; `row_type` adds `plan-summary`, `hop` and `step`. Filters only hide component rows and never alter plan/hop gates, global checks or coverage. HTML renders each hop in-document with no iframe, external asset or network request.
 
 ## Reports
 
@@ -70,13 +87,13 @@ Output files are written atomically with mode 0600. Their parent directory must 
 
 | Code | Meaning |
 | --- | --- |
-| 0 | Complete inventory, report rendering success, or assessment with no known blockers and no required unknowns. Not runtime certification. |
-| 1 | Invalid command, input or unsupported target. |
-| 2 | Proven compatibility/readiness blocker; unknown findings remain visible. |
-| 3 | Incomplete collection/evidence or unresolved required checks; partial source refresh. |
-| 4 | Operational failure, such as unavailable configuration/cache/output. |
+| 0 | Complete inventory, report/saved-plan rendering success, or assessment/plan with no known blockers and no required unknowns. Not runtime certification or execution permission. |
+| 1 | Invalid command, malformed plan input, conflicting identity or unsupported target. |
+| 2 | Proven compatibility/readiness/plan blocker; unknown findings remain visible. |
+| 3 | Incomplete collection/evidence, unresolved required checks or missing future plan-hop evidence; partial source refresh. |
+| 4 | Operational failure, such as unavailable configuration/cache/referenced inventory/output. |
 
-`report --input` returns rendering success/failure; the assessment's original exit code remains in its output. `scan` returns collection status, not a compatibility verdict.
+`report --input` returns rendering success/failure; the assessment's or plan's original exit code remains in its output. `scan` returns collection status, not a compatibility verdict. `plan` returns its plan gate: 1 for invalid input, 2 for blockers and 3 for required unknowns.
 
 ## Identity, private sources and rendering
 
@@ -86,7 +103,7 @@ Git acquisition requires `--git-url HTTPS_URL --git-revision FULL_40_HEX_SHA --g
 
 Inventory and assessment carry top-level `sources` receipts even when a Service/PDB/custom-resource input has no workload components. Receipts contain input/dependency digests and renderer versions, not private local paths or manifest payloads. Component source references remain available for ownership/version attribution.
 
-CSV is one typed file: `row_type` is `component`, `summary`, `check` or `coverage`. Existing component columns are retained; appended columns carry domain, stable scope, severity, JSON details, collector, kinds and omissions. Every data row carries the full overall decision/exit code; summary/check/coverage rows exist even with zero components. Read by column name and row type, not by assuming every row is an installation. `evidence_ids` preserves exact references even when evidence metadata is unavailable. Formula-leading cells are neutralized. Component filters never discard global checks or coverage, or recompute the decision. JSON remains the canonical assessment contract.
+CSV is one typed file: assessment `row_type` is `component`, `summary`, `check` or `coverage`; a plan adds `plan-summary`, `hop` and `step` and prefixes every row with plan/hop decision and exit columns. Existing component columns are retained; appended columns carry domain, stable scope, severity, JSON details, collector, kinds and omissions. Every data row carries the full overall decision/exit code; summary/check/coverage rows exist even with zero components. Read by column name and row type, not by assuming every row is an installation. `evidence_ids` preserves exact references even when evidence metadata is unavailable. Formula-leading cells are neutralized. Component filters never discard global checks or coverage, or recompute the decision. JSON remains the canonical assessment/plan contract.
 
 All report formats collect top-level **and all component-local** checks before component filtering. Only identical records with the same ID/scope are deduplicated; differing reason/severity/details/evidence records remain separate, including conflicting records sharing an ID. This includes runtime support/exclusion/known-issue/tested/lifecycle findings produced under components, not just top-level readiness findings.
 

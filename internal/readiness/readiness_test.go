@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/wussh/kubecompact/internal/discovery"
 	"github.com/wussh/kubecompact/internal/model"
+	"strings"
 	"testing"
 )
 
@@ -97,13 +98,14 @@ func TestSchemaReferenceNeverLoadsNetwork(t *testing.T) {
 	}
 }
 func TestTargetPatchIsExplicit(t *testing.T) {
-	for _, target := range []string{"1.35", "1.35.0", "v1.35.0"} {
+	for _, target := range []string{"1.33", "v1.33", "1.33.0", "v1.33.0", "1.34", "v1.34", "1.34.0", "v1.34.0", "1.35", "v1.35", "1.35.0", "v1.35.0"} {
 		resolved, e := ResolveTarget(target)
-		if e != nil || resolved != "1.35.0" {
+		minor := strings.TrimPrefix(target, "v")[:4]
+		if e != nil || resolved != minor+".0" {
 			t.Fatalf("resolve %q=%q,%v", target, resolved, e)
 		}
 	}
-	for _, target := range []string{"1.35.1", "1.34", "master", "1.35.0-rc.1"} {
+	for _, target := range []string{"1.35.1", "1.33.1", "1.34.1", "1.32", "1.36", "master", "1.35.0-rc.1", "1.33.00"} {
 		if _, e := ResolveTarget(target); e == nil {
 			t.Fatalf("accepted %q", target)
 		}

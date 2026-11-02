@@ -14,31 +14,32 @@ import (
 	"github.com/wussh/kubecompact/internal/model"
 )
 
-var ErrTarget = errors.New("unsupported Kubernetes target; catalog covers 1.35 only")
+var ErrTarget = errors.New("unsupported Kubernetes target; catalogs cover 1.33, 1.34 and 1.35 at patch 0 only")
 
 type lifecycleEntry struct{ Group, Version, Kind, Introduced, Deprecated, Removed, Replacement, Source string }
 
 func targetMinor(target string) (int, error) {
 	s := strings.TrimPrefix(target, "v")
 	parts := strings.Split(s, ".")
-	if len(parts) < 2 || len(parts) > 3 || parts[0] != "1" || parts[1] != "35" {
+	if len(parts) < 2 || len(parts) > 3 || parts[0] != "1" || (parts[1] != "33" && parts[1] != "34" && parts[1] != "35") {
 		return 0, ErrTarget
 	}
 	if len(parts) == 3 {
 		n, e := strconv.Atoi(parts[2])
-		if e != nil || n != 0 {
+		if e != nil || n != 0 || parts[2] != "0" {
 			return 0, ErrTarget
 		}
 	}
-	return 35, nil
+	return strconv.Atoi(parts[1])
 }
 
 // ResolveTarget rejects unsupported exact patches before any input collection.
 func ResolveTarget(target string) (string, error) {
-	if _, err := targetMinor(target); err != nil {
+	minor, err := targetMinor(target)
+	if err != nil {
 		return "", err
 	}
-	return "1.35.0", nil
+	return fmt.Sprintf("1.%d.0", minor), nil
 }
 func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([]model.CheckResult, error) {
 	target, err := targetMinor(opts.TargetKubernetes)
@@ -48,8 +49,20 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
+	resolved, err := ResolveTarget(opts.TargetKubernetes)
+	if err != nil {
+		return nil, err
+	}
+	dataset, err := data.ForTarget(resolved)
+	if err != nil {
+		return nil, err
+	}
+	lifecycle, err := dataset.Lifecycle()
+	if err != nil {
+		return nil, err
+	}
 	var catalog struct{ Entries []lifecycleEntry }
-	if json.Unmarshal(data.Lifecycle(), &catalog) != nil {
+	if json.Unmarshal(lifecycle, &catalog) != nil {
 		return nil, errors.New("API lifecycle catalog invalid")
 	}
 	entries := map[string]lifecycleEntry{}
@@ -74,6 +87,10 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 		}
 		e, known := entries[r.Ref.Group+"/"+version+"/"+r.Ref.Kind]
 		api := lifecycleResult(e, known, scope, target, entries)
+		if api.Details == nil {
+			api.Details = map[string]string{}
+		}
+		api.Details["catalog"] = "kubernetes-api-v0." + strconv.Itoa(target) + ".0"
 		results = append(results, api)
 		switch r.Ref.Kind {
 		case "CustomResourceDefinition":
