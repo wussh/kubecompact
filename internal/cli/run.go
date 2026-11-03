@@ -80,6 +80,7 @@ Commands:
   check     Evaluate inventory against --target-k8s using cached or online evidence
   plan      Build an offline read-only K3s per-hop plan from sanitized input
   report    Render --input assessment.json or upgrade-plan.json, or collect and evaluate
+  matrix    Build or verify the pinned compat-matrix/v1 dataset offline
   db update Refresh official compatibility evidence (no cluster access)
   version   Print scanner and schema versions
 
@@ -308,6 +309,9 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	if args[0] == "plan" {
 		return runPlan(ctx, args[1:], stdout, stderr)
+	}
+	if args[0] == "matrix" {
+		return runMatrix(ctx, args[1:], stdout, stderr)
 	}
 	command := args[0]
 	rest := args[1:]

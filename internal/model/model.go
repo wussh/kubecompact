@@ -166,6 +166,9 @@ type ClusterObservation struct {
 	Nodes             []NodeObservation `json:"nodes,omitempty"`
 	ObservedAt        time.Time         `json:"observedAt"`
 	Gaps              []string          `json:"gaps,omitempty"`
+	// Reachable is explicit saved evidence only. A nil value means reachability
+	// was not asserted; it is never inferred from a missing kubeconfig.
+	Reachable *bool `json:"reachable,omitempty"`
 }
 type NodeObservation struct {
 	Name           string `json:"name"`

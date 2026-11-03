@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "kubecompat.io/v1alpha1",
+  "scannerVersion": "test",
+  "scanId": "synthetic-matrix-fixture",
+  "startedAt": "2026-11-02T09:00:00Z",
+  "finishedAt": "2026-11-02T09:16:37Z",
+  "inputMode": "kubernetes",
+  "scope": "all-namespaces",
+  "clusters": [
+    {
+      "id": "dev",
+      "kubernetesVersion": "1.33.13+k3s2",
+      "distribution": "k3s",
+      "reachable": true,
+      "observedAt": "2026-11-02T09:16:37Z"
+    }
+  ],
+  "components": [
+    {
+      "id": "deployment/velero/velero",
+      "name": "velero",
+      "clusterId": "dev",
+      "project": "velero",
+      "identityConfidence": "reviewed-image-origin",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "versions": [
+        {
+          "role": "deployed",
+          "scheme": "app",
+          "raw": "1.17.1",
+          "sourceId": "deployment/velero/velero",
+          "field": "status.history.appVersion",
+          "observedAt": "2026-11-02T09:16:37Z",
+          "confidence": "observed"
+        }
+      ],
+      "observedAt": "2026-11-02T09:16:37Z"
+    },
+    {
+      "id": "daemonset/kube-system/cilium",
+      "name": "cilium",
+      "clusterId": "dev",
+      "identityConfidence": "reviewed-image-origin",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "images": [
+        {
+          "resource": {
+            "kind": "DaemonSet",
+            "name": "cilium",
+            "namespace": "kube-system"
+          },
+          "container": "cilium-agent",
+          "role": "running",
+          "image": "quay.io/cilium/cilium:v1.15.7",
+          "repository": "quay.io/cilium/cilium",
+          "tag": "v1.15.7"
+        }
+      ],
+      "observedAt": "2026-11-02T09:16:37Z"
+    },
+    {
+      "id": "deployment/gpu-operator/gpu-operator",
+      "name": "gpu-operator",
+      "clusterId": "dev",
+      "project": "gpu-operator",
+      "identityConfidence": "reviewed-image-origin",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "versions": [
+        {
+          "role": "deployed",
+          "scheme": "app",
+          "raw": "25.10.1",
+          "sourceId": "deployment/gpu-operator/gpu-operator",
+          "field": "helm.appVersion",
+          "observedAt": "2026-11-02T09:16:37Z",
+          "confidence": "observed"
+        }
+      ],
+      "observedAt": "2026-11-02T09:16:37Z"
+    },
+    {
+      "id": "deployment/kyverno/kyverno-admission-controller",
+      "name": "kyverno",
+      "clusterId": "dev",
+      "project": "kyverno",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "observedAt": "2026-11-02T09:16:37Z"
+    },
+    {
+      "id": "deployment/loft/loft",
+      "name": "loft",
+      "clusterId": "dev",
+      "project": "vcluster",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "versions": [
+        {
+          "role": "deployed",
+          "scheme": "app",
+          "raw": "4.11.3",
+          "sourceId": "deployment/loft/loft",
+          "field": "helm.appVersion",
+          "observedAt": "2026-11-02T09:16:37Z",
+          "confidence": "observed"
+        }
+      ],
+      "observedAt": "2026-11-02T09:16:37Z"
+    },
+    {
+      "id": "daemonset/kube-system/multus",
+      "name": "kube-multus-ds",
+      "clusterId": "dev",
+      "identityConfidence": "reviewed-image-origin",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "images": [
+        {
+          "resource": {
+            "kind": "DaemonSet",
+            "name": "kube-multus-ds",
+            "namespace": "kube-system"
+          },
+          "container": "kube-multus",
+          "role": "running",
+          "image": "docker.io/rancher/hardened-multus-cni:v4.2.1-build20250607",
+          "repository": "docker.io/rancher/hardened-multus-cni",
+          "tag": "v4.2.1-build20250607"
+        }
+      ],
+      "observedAt": "2026-11-02T09:16:37Z"
+    },
+    {
+      "id": "deployment/everest-system/everest-operator",
+      "name": "everest-operator",
+      "clusterId": "dev",
+      "identityConfidence": "reviewed-image-origin",
+      "managedBy": [
+        "direct"
+      ],
+      "resources": [],
+      "images": [
+        {
+          "resource": {
+            "kind": "Deployment",
+            "name": "everest-operator",
+            "namespace": "everest-system"
+          },
+          "container": "manager",
+          "role": "running",
+          "image": "ghcr.io/openeverest/everest-operator:1.16.2",
+          "repository": "ghcr.io/openeverest/everest-operator",
+          "tag": "1.16.2"
+        }
+      ],
+      "observedAt": "2026-11-02T09:16:37Z"
+    }
+  ],
+  "resources": [
+    {
+      "ref": {
+        "group": "apiextensions.k8s.io",
+        "kind": "CustomResourceDefinition",
+        "name": "kubevirts.kubevirt.io"
+      }
+    },
+    {
+      "ref": {
+        "group": "apiextensions.k8s.io",
+        "kind": "CustomResourceDefinition",
+        "name": "tridentorchestrators.trident.netapp.io"
+      }
+    },
+    {
+      "ref": {
+        "group": "apiextensions.k8s.io",
+        "kind": "CustomResourceDefinition",
+        "name": "veleros.velero.io"
+      }
+    }
+  ],
+  "sources": [],
+  "coverage": [
+    {
+      "collector": "kubernetes",
+      "scope": "all-namespaces",
+      "kinds": [
+        "Deployment",
+        "DaemonSet",
+        "StatefulSet",
+        "Pod"
+      ],
+      "state": "COMPLETE"
+    },
+    {
+      "collector": "kubernetes",
+      "scope": "all-namespaces",
+      "kinds": [
+        "CustomResourceDefinition"
+      ],
+      "state": "COMPLETE"
+    }
+  ]
+}

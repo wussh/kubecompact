@@ -85,6 +85,86 @@ Saved-assessment rendering is pure offline and does not open the evidence databa
 
 Output files are written atomically with mode 0600. Their parent directory must already exist. The evidence directory must be private (0700), and its database private (0600); existing permissive directories are rejected, not silently chmodded.
 
+## Compatibility matrix
+
+```sh
+bin/kubecompat matrix build --dataset compat-matrix/data/matrix.json --format markdown --output matrix.md
+bin/kubecompat matrix build --dataset compat-matrix/data/matrix.json --inventory inventory.json \
+  --scope scope.json --format json --extended --output matrix.json
+bin/kubecompat matrix verify --dataset compat-matrix/data/matrix.json --format json --output verify.json
+bin/kubecompat matrix verify --dataset compat-matrix/data/matrix.json --online \
+  --allow-hosts github.com,docs.cilium.io --format table
+```
+
+`matrix build` and `matrix verify` are strictly offline unless `verify --online` is passed. They read only the explicit
+`--dataset`/`--inventory`/`--scope`/`--adjudications` files, never a kubeconfig, Secret or cluster, and never modify the
+dataset. `--output` is atomic mode 0600; the parent directory must exist.
+
+The dataset is the compatibility tracker's pinned `compat-matrix/v1` artifact and is the Phase-1 authority for every
+status, required version, source and date. `matrix build` validates it and writes nothing on failure: `schemaVersion` must
+be `compat-matrix/v1`, the `kubernetes` minor list must be non-empty and unique, each component must declare exactly that
+minor set, `status` must be `supported`, `unsupported` or `unknown`, `source`/`officialDocs` must be `https` URLs, and
+`verifiedAt`/`generatedAt` must be valid ISO dates/timestamps. Duplicate components, duplicate minors (including duplicate
+JSON object keys) and duplicate K3s rows per minor are rejected. The dataset SHA-256 is recorded (`--expect-digest` fails
+the run on mismatch); Markdown output, `--extended` documents and `verify` reports show it, while default JSON/CSV stay
+schema-exact and therefore carry no extra field. No status is ever inferred, normalised or promoted: a pinned
+`unknown` stays `unknown`/`UNKNOWN` in every format.
+
+- Default JSON output reuses `compat-matrix/v1`; product-only fields appear only under `extensions` with `--extended`.
+- Default CSV uses exactly the tracker's nine columns
+  (`component,category,kubernetes,status,requiredVersion,source,verifiedAt,notes,currentVersions`); `--extended` appends
+  `installationState,installationDetail,claimType,confidence,evidenceId,stale,adjudication,searchedUrls`. Pinned rows never
+  fabricate claim/confidence/evidence/adjudication values or searched URLs.
+- Markdown mirrors the tracker layout: K3s release table, one table per component with per-minor notes, the current
+  cluster table, `## Out of scope` when a scope is supplied, and a per-target compatibility-blocker section when
+  installation state is available. `|` and newlines are escaped; links stay `https`.
+
+`--scope` accepts the tracker's scope block directly (`{"inScope":[...],"outOfScope":[...]}`) or a current-state file
+that contains it; it overrides the dataset's embedded scope for derived installation/impact output. `--inventory` accepts
+a saved `kubecompat.io/v1alpha1` inventory, strictly decoded, and wins over the dataset's embedded `currentState`.
+
+Default JSON with no `--inventory` copies the dataset's embedded `currentState` verbatim (nothing is dropped, even with
+`--scope`; the scope override then appears only in the derived installation/impact output and Markdown). With
+`--inventory`, JSON emits a derived `compat-current-state/v1` projection containing per-cluster
+`kubernetesVersion`/`reachable`/`components`/`absent` plus `inScope`/`outOfScope`; tenants, notes and other observation
+annotations are not synthesized, and `--extended` `installation` is the explicit five-state view. The matrix is independent of the `check`/`plan` target
+allowlist: 1.33–1.37 rows render while `check --target-k8s 1.36` still rejects the target.
+
+Per-cluster installation state is explicit: `installed` (a matching inventory component with a version), `absent` (only
+from positive evidence: a registered expected project observed over complete workload and CRD coverage, with no matching
+workload, image repository or API group), `unknown` (expected but unobserved, partial/unattributable coverage, ambiguous
+identity or unavailable version), `out-of-scope` (only from an explicit scope entry) and `unreachable` (only from an
+explicit inventory `reachable: false`). A missing kubeconfig never produces `absent` or `unreachable`. Inventory IDs are
+mapped through the reviewed project registry, including the `gpu-operator`→`nvidia-gpu-operator` and
+`network-operator`→`nvidia-network-operator` aliases; the `vcluster` inventory entry is the platform estimate, so it is
+`unknown (platform-only)` rather than a chart-row installation. Multiple controllers of one product sharing a version are one installation; repeated
+installs with **conflicting versions**, or a declared project that disagrees with its image origins, are
+`unknown (identity-ambiguous)` instead of picking one observation (the result is order-independent). Blocker/impact output states each cluster's state and
+never labels an absent component a cluster upgrade blocker.
+
+`matrix verify` always performs offline structural verification. `--online` requires an explicit `--allow-hosts` list and
+re-fetches each distinct cited URL through the existing transport policy (HTTPS, redirect revalidation, bounds,
+`--ca-file`, mode-0600 `--credentials-file`); fragments are stripped and query-carrying URLs are refused. Fetched bodies
+are not persisted and the dataset is never written. Verdicts are `STRUCTURAL` (offline: schema, duplicate
+rows, dates and URL form validated, but no page fetched; offline rows are never reported as `OK`), `OK` (online: HTTP 200
+and the recorded minor present), `WEAK` (the minor appears only in unreleased/development context, or a row recorded as
+unknown cites a page that mentions it), `ADJUDICATED` (a reviewed `--adjudications` record; no re-fetch), `MISMATCH` (a
+`supported` row whose minor is absent), `UNREACHABLE` (transport/policy failure or non-200), `UNVERIFIABLE` (an
+`unsupported` row: the checker does not parse exclusion statements, so human review is required) and `STALE` (offline
+evidence older than 90 days). Adjudication records only mark a cell; they never change a
+status.
+
+Matrix exit codes are separate from the existing commands:
+
+| Code | `matrix build` | `matrix verify` |
+| --- | --- | --- |
+| 0 | rendered from a valid pinned dataset | every row `OK`, `STRUCTURAL` or `ADJUDICATED` |
+| 1 | invalid dataset/input (schema, status, URL, date, duplicate, digest mismatch) | invalid dataset/input or invalid transport configuration |
+| 2 | — | any `WEAK`, `MISMATCH`, `UNREACHABLE`, `UNVERIFIABLE` or `STALE` row |
+| 4 | output/IO unavailable | output/IO unavailable |
+
+`scan`, `check`, `plan`, `report` and `db update` behavior and exit codes are unchanged.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -95,7 +175,7 @@ Output files are written atomically with mode 0600. Their parent directory must 
 | 3 | Incomplete collection/evidence, unresolved required checks or missing future plan-hop evidence; partial source refresh. |
 | 4 | Operational failure, such as unavailable configuration/cache/referenced inventory/output. |
 
-`report --input` returns rendering success/failure; the assessment's or plan's original exit code remains in its output. `scan` returns collection status, not a compatibility verdict. `plan` returns its plan gate: 0 for no blocker and no required unknown (conditional only; a plan also requires the current `complete-membership` operator attestation because the scanner cannot prove node-list completeness), 1 for invalid input, 2 for a blocker, 3 for a required unknown and 4 for an I/O or operational failure. A saved-plan report remains rendering exit 0 while retaining the stored plan/hop gates.
+`matrix build`/`matrix verify` use their own mapping documented above. `report --input` returns rendering success/failure; the assessment's or plan's original exit code remains in its output. `scan` returns collection status, not a compatibility verdict. `plan` returns its plan gate: 0 for no blocker and no required unknown (conditional only; a plan also requires the current `complete-membership` operator attestation because the scanner cannot prove node-list completeness), 1 for invalid input, 2 for a blocker, 3 for a required unknown and 4 for an I/O or operational failure. A saved-plan report remains rendering exit 0 while retaining the stored plan/hop gates.
 
 ## Identity, private sources and rendering
 

@@ -26,6 +26,21 @@ bin/kubecompat check --inventory inventory.json --target-k8s 1.35 --offline --ca
 
 Base scans never request Secret/ConfigMap payloads. Optional Helm release bodies require separate authorization, `--helm-storage`, and one storage namespace: `--namespace NAME` or explicit `--helm-storage-namespace NAME` independent of all-namespace workload scope; see [security](docs/security.md). Failed or absent source/controller access remains visible. Fifteen compile-time adapters retrieve official documentation/release metadata; not every upstream publishes an authoritative runtime matrix.
 
+## Compatibility matrix export
+
+```sh
+bin/kubecompat matrix build --dataset compat-matrix/data/matrix.json --format markdown --output matrix.md
+bin/kubecompat matrix build --dataset compat-matrix/data/matrix.json --inventory inventory.json --format json --extended --output matrix.json
+bin/kubecompat matrix verify --dataset compat-matrix/data/matrix.json --format table
+```
+
+The pinned compatibility tracker dataset (`compat-matrix/v1`) is imported and validated offline and is the authority for
+every matrix status, required version, source and date. Default JSON/CSV output reuses that schema exactly; product-only
+fields and per-cluster installation state are additive behind `--extended`. `matrix verify` is structural offline (rows report `STRUCTURAL`, never `OK`) and re-fetches cited URLs only with explicit
+`--online --allow-hosts`; it never mutates the dataset or promotes a status, and exits 2 when any non-clean verdict remains
+(`WEAK`, `MISMATCH`, `UNREACHABLE`, `UNVERIFIABLE`, `STALE`). The matrix covers recorded
+rows for 1.33–1.37 independently of the `check` target catalog. See [usage](docs/usage.md#compatibility-matrix).
+
 ## What results mean
 
 | Result | Meaning |
@@ -45,6 +60,7 @@ Reports retain global blockers and incomplete coverage even with no components o
 ## Documentation
 
 - [Commands, outputs, private sources and exit codes](docs/usage.md)
+- [Compatibility matrix export and verification](docs/usage.md#compatibility-matrix)
 - [Discovery, Helm, Argo CD and Flux semantics](docs/discovery.md)
 - [API/schema/static readiness and target data](docs/readiness.md)
 - [Official sources and compatibility claim boundaries](docs/compatibility-sources.md)
