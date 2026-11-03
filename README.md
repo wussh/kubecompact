@@ -37,7 +37,8 @@ bin/kubecompat matrix verify --dataset compat-matrix/data/matrix.json --format t
 The pinned compatibility tracker dataset (`compat-matrix/v1`) is imported and validated offline and is the authority for
 every matrix status, required version, source and date. Default JSON/CSV output reuses that schema exactly; product-only
 fields and per-cluster installation state are additive behind `--extended`. `matrix verify` is structural offline (rows report `STRUCTURAL`, never `OK`) and re-fetches cited URLs only with explicit
-`--online --allow-hosts`; it never mutates the dataset or promotes a status, and exits 2 when any non-clean verdict remains
+`--online --allow-hosts`; `--allow-hosts` extends the built-in official host set, it does not restrict fetching to the
+listed hosts. Verify never mutates the dataset or promotes a status, and exits 2 when any non-clean verdict remains
 (`WEAK`, `MISMATCH`, `UNREACHABLE`, `UNVERIFIABLE`, `STALE`). The matrix covers recorded
 rows for 1.33–1.37 independently of the `check` target catalog. See [usage](docs/usage.md#compatibility-matrix).
 

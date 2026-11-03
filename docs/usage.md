@@ -117,7 +117,9 @@ schema-exact and therefore carry no extra field. No status is ever inferred, nor
   fabricate claim/confidence/evidence/adjudication values or searched URLs.
 - Markdown mirrors the tracker layout: K3s release table, one table per component with per-minor notes, the current
   cluster table, `## Out of scope` when a scope is supplied, and a per-target compatibility-blocker section when
-  installation state is available. `|` and newlines are escaped; links stay `https`.
+  installation state is available. `|` and newlines are escaped; links stay `https`. With no `--inventory`/`--scope`
+  supplied, `--extended` Markdown is identical to default Markdown; extensions add derived installation/blocker content
+  and JSON/CSV extension fields, not extra Markdown provenance.
 
 `--scope` accepts the tracker's scope block directly (`{"inScope":[...],"outOfScope":[...]}`) or a current-state file
 that contains it; it overrides the dataset's embedded scope for derived installation/impact output. `--inventory` accepts
@@ -144,7 +146,8 @@ never labels an absent component a cluster upgrade blocker.
 
 `matrix verify` always performs offline structural verification. `--online` requires an explicit `--allow-hosts` list and
 re-fetches each distinct cited URL through the existing transport policy (HTTPS, redirect revalidation, bounds,
-`--ca-file`, mode-0600 `--credentials-file`); fragments are stripped and query-carrying URLs are refused. Fetched bodies
+`--ca-file`, mode-0600 `--credentials-file`); fragments are stripped and query-carrying URLs are refused.
+`--allow-hosts` extends the built-in official host set; it does not restrict fetching to the listed hosts. Fetched bodies
 are not persisted and the dataset is never written. Verdicts are `STRUCTURAL` (offline: schema, duplicate
 rows, dates and URL form validated, but no page fetched; offline rows are never reported as `OK`), `OK` (online: HTTP 200
 and the recorded minor present), `WEAK` (the minor appears only in unreleased/development context, or a row recorded as

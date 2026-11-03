@@ -31,7 +31,8 @@ matrix build  Render the pinned compat-matrix/v1 dataset offline.
 matrix verify  Verify the pinned dataset; the dataset is never modified.
   --dataset PATH        required pinned compat-matrix/v1 JSON dataset
   --online              re-fetch cited URLs (requires --allow-hosts)
-  --allow-hosts h1,h2   explicit comma-separated host allowlist
+  --allow-hosts h1,h2   comma-separated hosts; extends the built-in official
+                        host set and does not restrict fetching to these hosts
   --ca-file PATH        additional trusted CA for transport tests
   --credentials-file PATH  private per-origin credentials (mode 0600)
   --adjudications PATH  reviewed adjudication file (marks cells ADJUDICATED)
