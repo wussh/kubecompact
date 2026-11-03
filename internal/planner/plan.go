@@ -25,15 +25,16 @@ var policyJSON []byte
 
 const (
 	observedMinMinor = 32
+	maxSourceMinor   = 36
 	minTargetMinor   = 33
-	maxTargetMinor   = 35
+	maxTargetMinor   = 37
 )
 
 var (
 	// releasePattern accepts only an exact distribution identity. The schema
 	// patch allowlist is separate and never inferred from this value.
-	releasePattern = regexp.MustCompile(`^v?1\.(32|33|34|35)\.(0|[1-9][0-9]{0,3})\+k3s([1-9][0-9]{0,3})$`)
-	kubePattern    = regexp.MustCompile(`^v?1\.(32|33|34|35)\.([0-9]{1,4})(?:[+-][0-9A-Za-z.+-]+)?$`)
+	releasePattern = regexp.MustCompile(`^v?1\.(32|33|34|35|36|37)\.(0|[1-9][0-9]{0,3})\+k3s([1-9][0-9]{0,3})$`)
+	kubePattern    = regexp.MustCompile(`^v?1\.(32|33|34|35|36|37)\.([0-9]{1,4})(?:[+-][0-9A-Za-z.+-]+)?$`)
 	safeText       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._:/@+-]{0,255}$`)
 )
 
@@ -78,8 +79,8 @@ func validateEndpoints(from, to string) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	if first < observedMinMinor || first >= maxTargetMinor {
-		return 0, 0, errors.New("source minor must be 1.32, 1.33 or 1.34")
+	if first < observedMinMinor || first > maxSourceMinor {
+		return 0, 0, errors.New("source minor must be 1.32 through 1.36")
 	}
 	if last < minTargetMinor || last > maxTargetMinor || last <= first {
 		return 0, 0, errors.New("target must be a supported minor strictly greater than the source")
@@ -743,7 +744,7 @@ func endpointMinor(value string) (int, error) {
 			return minor, nil
 		}
 	}
-	return 0, errors.New("unsupported plan endpoint; expected 1.32, 1.33, 1.34 or 1.35")
+	return 0, errors.New("unsupported plan endpoint; expected 1.32 through 1.37")
 }
 
 func minorName(minor int) string {

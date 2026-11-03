@@ -270,7 +270,7 @@ func chartCRDs(ch chart.Charter) []inputDocument {
 }
 func targetCapabilities(target string, kv common.KubeVersion) (*common.Capabilities, error) {
 	resolved := strings.TrimPrefix(target, "v")
-	if resolved == "1.33" || resolved == "1.34" || resolved == "1.35" {
+	if resolved == "1.33" || resolved == "1.34" || resolved == "1.35" || resolved == "1.36" || resolved == "1.37" {
 		resolved += ".0"
 	}
 	dataset, err := data.ForTarget(resolved)

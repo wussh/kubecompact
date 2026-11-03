@@ -14,14 +14,14 @@ import (
 	"github.com/wussh/kubecompact/internal/model"
 )
 
-var ErrTarget = errors.New("unsupported Kubernetes target; catalogs cover 1.33, 1.34 and 1.35 at patch 0 only")
+var ErrTarget = errors.New("unsupported Kubernetes target; catalogs cover 1.33 through 1.37 at patch 0 only")
 
 type lifecycleEntry struct{ Group, Version, Kind, Introduced, Deprecated, Removed, Replacement, Source string }
 
 func targetMinor(target string) (int, error) {
 	s := strings.TrimPrefix(target, "v")
 	parts := strings.Split(s, ".")
-	if len(parts) < 2 || len(parts) > 3 || parts[0] != "1" || (parts[1] != "33" && parts[1] != "34" && parts[1] != "35") {
+	if len(parts) < 2 || len(parts) > 3 || parts[0] != "1" || (parts[1] != "33" && parts[1] != "34" && parts[1] != "35" && parts[1] != "36" && parts[1] != "37") {
 		return 0, ErrTarget
 	}
 	if len(parts) == 3 {
@@ -74,6 +74,23 @@ func Check(ctx context.Context, inv model.Inventory, opts model.CheckOptions) ([
 	for _, e := range []lifecycleEntry{{Group: "apiextensions.k8s.io", Version: "v1beta1", Kind: "CustomResourceDefinition", Deprecated: "1.16", Removed: "1.22", Replacement: "apiextensions.k8s.io/v1 CustomResourceDefinition"}, {Group: "apiextensions.k8s.io", Version: "v1", Kind: "CustomResourceDefinition", Introduced: "1.16"}, {Group: "apiregistration.k8s.io", Version: "v1beta1", Kind: "APIService", Deprecated: "1.19", Removed: "1.22", Replacement: "apiregistration.k8s.io/v1 APIService"}, {Group: "apiregistration.k8s.io", Version: "v1", Kind: "APIService", Introduced: "1.10"}} {
 		e.Source = "https://kubernetes.io/docs/reference/using-api/deprecation-guide/"
 		entries[e.Group+"/"+e.Version+"/"+e.Kind] = e
+	}
+	// Once an API package is deleted from kubernetes/api, its generated lifecycle
+	// file disappears, so 1.36+ catalogs omit historically removed beta APIs.
+	// Supplement only when the pinned catalog lacks the entry, preserving the
+	// original catalog source for 1.33-1.35.
+	for _, e := range []lifecycleEntry{
+		{Group: "autoscaling", Version: "v2beta1", Kind: "HorizontalPodAutoscaler", Introduced: "1.8", Deprecated: "1.22", Removed: "1.25", Replacement: "autoscaling/v2 HorizontalPodAutoscaler"},
+		{Group: "autoscaling", Version: "v2beta1", Kind: "HorizontalPodAutoscalerList", Introduced: "1.8", Deprecated: "1.22", Removed: "1.25", Replacement: "autoscaling/v2beta2 HorizontalPodAutoscalerList"},
+		{Group: "autoscaling", Version: "v2beta2", Kind: "HorizontalPodAutoscaler", Introduced: "1.12", Deprecated: "1.23", Removed: "1.26", Replacement: "autoscaling/v2 HorizontalPodAutoscaler"},
+		{Group: "autoscaling", Version: "v2beta2", Kind: "HorizontalPodAutoscalerList", Introduced: "1.12", Deprecated: "1.22", Removed: "1.25"},
+	} {
+		key := e.Group + "/" + e.Version + "/" + e.Kind
+		if _, present := entries[key]; present {
+			continue
+		}
+		e.Source = "https://kubernetes.io/docs/reference/using-api/deprecation-guide/"
+		entries[key] = e
 	}
 	var results []model.CheckResult
 	for _, r := range inv.Resources {

@@ -52,7 +52,7 @@ rows for 1.33–1.37 independently of the `check` target catalog. See [usage](do
 | NOT_TESTED | Outside an official tested set, without proof of incompatibility. |
 | UNKNOWN | Identity/version/evidence/freshness/conflict is insufficient. |
 
-API/schema/static readiness findings are independent. The pinned target catalog covers **Kubernetes 1.33, 1.34 and 1.35 at strict schema patch 1.N.0**, with no fallback between targets. A valid schema, chart constraint or published release never creates runtime support. Final-target support does not prove a direct/multi-hop upgrade path. The offline `plan` command proposes ordered adjacent K3s hops from supplied sanitized evidence; it never executes, drains, upgrades or restores anything and is not a rollback guarantee. See [usage](docs/usage.md#upgrade-plan).
+API/schema/static readiness findings are independent. The pinned target catalog covers **Kubernetes 1.33 through 1.37 at strict schema patch 1.N.0**, with no fallback between targets. A valid schema, chart constraint or published release never creates runtime support. Final-target support does not prove a direct/multi-hop upgrade path. The offline `plan` command proposes ordered adjacent K3s hops from supplied sanitized evidence; it never executes, drains, upgrades or restores anything and is not a rollback guarantee. See [usage](docs/usage.md#upgrade-plan).
 
 Inventory separates desired, attempted, resolved, successfully deployed and observed running versions. Helm chart/app versions are not interchangeable. Argo multi-source/values-only and Flux source/status observations retain provenance; ownership joins use resource/installation identities rather than labels alone.
 

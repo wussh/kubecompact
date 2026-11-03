@@ -4,16 +4,18 @@ Readiness findings do not set a component's documented runtime-support verdict. 
 
 ## Pinned target data
 
-Exactly Kubernetes **1.33, 1.34 and 1.35** are accepted. `1.N`, `v1.N`, `1.N.0` and `v1.N.0` resolve to the strict schema patch `1.N.0`, recorded as `resolvedTarget`. Other minors, exact patches after `.0`, prereleases and suffixes fail before collection. There is no fallback to 1.35, no default master/latest schema and no inferred target from a distribution release.
+Exactly Kubernetes **1.33, 1.34, 1.35, 1.36 and 1.37** are accepted. `1.N`, `v1.N`, `1.N.0` and `v1.N.0` resolve to the strict schema patch `1.N.0`, recorded as `resolvedTarget`. Other minors, exact patches after `.0`, prereleases and suffixes fail before collection. There is no fallback to another target, no default master/latest schema and no inferred target from a distribution release.
 
 | Target | Lifecycle source (Kubernetes API) | Strict schema files | Bundle SHA256 |
 | --- | --- | --- | --- |
 | 1.33.0 | `v0.33.0` commit `82c0029eaa2f5bdbfbbbce9305349a893e6c86dc` | 698 | `453c52378dab91a54eb09657eb45564dd4ba30fa55f4c42a01ff225e4d715ecc` |
 | 1.34.0 | `v0.34.0` commit `ae6c3b911ef17a4e2b10922c745c6f35bcf9b78e` | 721 | `720756beb922c2ed5f834fef4dc818f195314eec5e4d8b3b1114f205fc31350e` |
 | 1.35.0 | existing `v0.35.0` lifecycle pin `9afe7de0a56c582b06ca094f7309015bc84657a7` | 726 | existing pinned bundle, unchanged |
+| 1.36.0 | `v0.36.0` tag object `c154f18699ac61edb5090f23630200ebc8074bf5`, commit `545bb975fe6653239af42324065cf72272186404` (53 lifecycle files, 298 entries) | 762 | `cd2efcce532b82de735622d91005840795ea50a9c32642ef7f5cf69fac60ddcb` |
+| 1.37.0 | `v0.37.0` tag object `027373a05d80f7af6f212d1eb55009bbb931174a`, commit `34b5cc4a2603a1cdcad4aced5c83808fb7df7bb8` (55 lifecycle files, 313 entries) | 845 | `dfb8109fbb16b469fbd020a60d81acb14f2922a25dc2e128d2f811fb591cd85f` |
 
-- API catalogs: `data/api-lifecycle-1.33.0.json`, `data/api-lifecycle-1.34.0.json` and the existing 1.35 catalog, each with per-entry upstream lifecycle-source URLs and replacements, Apache-2.0 license and immutable source revision. Explicit CRD/APIService and Endpoints policy entries supplement generated metadata; Endpoints deprecation at 1.33 is not API removal.
-- Strict schemas: `data/schemas/kubernetes-1.33.0.json.gz.b64` and `kubernetes-1.34.0.json.gz.b64`, selected from kubernetes-json-schema revision `7464e8eb55dab7063a4e6cb6cd6e2ed19f399580`. Matching `provenance-1.33.0.json` / `provenance-1.34.0.json` records the target, upstream source, complete selected-file inventory digest, bundle digest and every selected content hash. The existing 1.35 catalog, provenance and both licenses are byte-identical to the baseline.
+- API catalogs: `data/api-lifecycle-1.33.0.json`, `data/api-lifecycle-1.34.0.json`, the existing 1.35 catalog, and `data/api-lifecycle-1.36.0.json` / `api-lifecycle-1.37.0.json`, each with per-entry upstream lifecycle-source URLs and replacements, Apache-2.0 license and immutable source revision. The 1.36/1.37 catalogs also record the complete generated source inventory and its SHA256 map. Explicit CRD/APIService and Endpoints policy entries supplement generated metadata; Endpoints deprecation at 1.33 is not API removal.
+- Strict schemas: `data/schemas/kubernetes-1.33.0.json.gz.b64` and `kubernetes-1.34.0.json.gz.b64`, selected from kubernetes-json-schema revision `7464e8eb55dab7063a4e6cb6cd6e2ed19f399580`; `kubernetes-1.36.0.json.gz.b64` / `kubernetes-1.37.0.json.gz.b64` are selected from pinned revision `14355cdd490a43d21e05985668815a36a6f97da6`, a pinned revision containing both `v1.36.0-standalone-strict` and `v1.37.0-standalone-strict`. Matching provenance files record the target, upstream source, complete selected-file inventory digest, bundle digest and every selected content hash. The existing 1.35 catalog, provenance and both licenses are byte-identical to the baseline.
 - Each target is lazily loaded and integrity-checked at most once. A corrupt, wrong-target or over-limit bundle fails that target only; it never falls back to another dataset. Returned schema maps are read-only to callers.
 - Kubeconform v0.8.0 validates only staged, explicitly selected local schemas in strict mode with the resolved target version. Normal checks have no schema HTTP fallback. External references and schema ID redirection are rejected. Local schema directories must contain the matching `v1.N.0-standalone-strict` tree and an exact content match with the embedded target bundle.
 
@@ -33,7 +35,7 @@ Optional deprecated-client request summaries are bounded to 1 MiB and a caller-s
 
 ## Exercised behavior
 
-The actual CLI returned exit 2 for `testdata/readiness/removed.yaml` at target 1.35 and retained `API_REMOVED` independently of missing schema/usage evidence. Regression tests exercise API boundaries, missing/invalid/local/custom schemas, external references, CRD/webhook/PDB observations and usage intervals. A read-only saved-live-inventory check produced findings with raw-document validation correctly unavailable; it did not certify an upgrade.
+The actual CLI returned exit 2 for `testdata/readiness/removed.yaml` at targets 1.35, 1.36 and 1.37 and retained `API_REMOVED` independently of missing schema/usage evidence. Regression tests exercise API boundaries, missing/invalid/local/custom schemas, external references, CRD/webhook/PDB observations and usage intervals. A read-only saved-live-inventory check produced findings with raw-document validation correctly unavailable; it did not certify an upgrade.
 
 ## Finite lifecycle conformance references
 

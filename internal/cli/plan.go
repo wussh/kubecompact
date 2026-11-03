@@ -38,7 +38,7 @@ func runPlan(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	var from, to, distribution, inputPath string
 	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.StringVar(&from, "from-k8s", "", "source Kubernetes minor: 1.32, 1.33 or 1.34")
+	fs.StringVar(&from, "from-k8s", "", "source Kubernetes minor: 1.32 through 1.36")
 	fs.StringVar(&to, "target-k8s", "", "supported destination minor strictly greater than the source")
 	fs.StringVar(&distribution, "distribution", "k3s", "distribution (only k3s is supported)")
 	fs.StringVar(&inputPath, "plan-input", "", "bounded sanitized plan input JSON")

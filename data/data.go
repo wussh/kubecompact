@@ -31,6 +31,8 @@ var targets = map[string]*TargetData{
 	"1.33.0": {target: "1.33.0", lifecycle: "api-lifecycle-1.33.0.json", provenance: "schemas/provenance-1.33.0.json"},
 	"1.34.0": {target: "1.34.0", lifecycle: "api-lifecycle-1.34.0.json", provenance: "schemas/provenance-1.34.0.json"},
 	"1.35.0": {target: "1.35.0", lifecycle: "api-lifecycle.json", provenance: "schemas/provenance.json"},
+	"1.36.0": {target: "1.36.0", lifecycle: "api-lifecycle-1.36.0.json", provenance: "schemas/provenance-1.36.0.json"},
+	"1.37.0": {target: "1.37.0", lifecycle: "api-lifecycle-1.37.0.json", provenance: "schemas/provenance-1.37.0.json"},
 }
 
 // ForTarget requires an exact supported schema patch; there is no fallback.

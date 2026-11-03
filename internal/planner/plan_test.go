@@ -20,13 +20,14 @@ func baseInput(from, to string) model.PlanInput {
 		ObservedAt:    testNow.Add(-time.Hour),
 		Releases:      map[string]string{},
 	}
-	chainMinors := map[string]int{"1.33": 33, "1.34": 34, "1.35": 35}
-	chain := map[string]string{"1.33": "v1.33.0+k3s1", "1.34": "v1.34.1+k3s1", "1.35": "v1.35.0+k3s1"}
-	source := map[string]string{"1.33": "v1.33.0+k3s1", "1.34": "v1.34.1+k3s1"}
+	chainMinors := map[string]int{"1.33": 33, "1.34": 34, "1.35": 35, "1.36": 36, "1.37": 37}
+	chain := map[string]string{"1.33": "v1.33.0+k3s1", "1.34": "v1.34.1+k3s1", "1.35": "v1.35.0+k3s1", "1.36": "v1.36.5+k3s1", "1.37": "v1.37.1+k3s1"}
+	source := map[string]string{"1.33": "v1.33.0+k3s1", "1.34": "v1.34.1+k3s1", "1.35": "v1.35.0+k3s1", "1.36": "v1.36.5+k3s1"}
 	in.SourceRelease = source[from]
+	sourceMinor := chainMinors[from]
 	targetMinor := chainMinors[to]
 	for key, release := range chain {
-		if chainMinors[key] > 33 && chainMinors[key] <= targetMinor && key != from {
+		if chainMinors[key] > sourceMinor && chainMinors[key] <= targetMinor && key != from {
 			in.Releases[key] = release
 		}
 		if from == "1.32" && chainMinors[key] == 33 {
@@ -133,6 +134,9 @@ func TestAdjacentOrderedHops(t *testing.T) {
 		{"1.33", "1.35", []string{"1.33-to-1.34", "1.34-to-1.35"}, []string{"1.34", "1.35"}},
 		{"1.32", "1.33", []string{"1.32-to-1.33"}, []string{"1.33"}},
 		{"1.32", "1.35", []string{"1.32-to-1.33", "1.33-to-1.34", "1.34-to-1.35"}, []string{"1.33", "1.34", "1.35"}},
+		{"1.35", "1.37", []string{"1.35-to-1.36", "1.36-to-1.37"}, []string{"1.36", "1.37"}},
+		{"1.36", "1.37", []string{"1.36-to-1.37"}, []string{"1.37"}},
+		{"1.33", "1.37", []string{"1.33-to-1.34", "1.34-to-1.35", "1.35-to-1.36", "1.36-to-1.37"}, []string{"1.34", "1.35", "1.36", "1.37"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.from+"->"+tc.to, func(t *testing.T) {
@@ -178,8 +182,9 @@ func TestAdjacentOrderedHops(t *testing.T) {
 func TestEndpointValidation(t *testing.T) {
 	for _, pair := range [][2]string{
 		{"1.33", "1.33"}, {"1.34", "1.33"}, {"1.32", "1.32"}, {"1.31", "1.35"},
-		{"1.35", "1.36"}, {"1.36", "1.37"}, {"bogus", "1.35"}, {"1.33", "bogus"},
-		{"1.33.1", "1.35"}, {"1.33", "1.35.1"},
+		{"1.37", "1.37"}, {"1.37", "1.38"}, {"1.36", "1.36"}, {"1.36", "1.38"},
+		{"1.37", "1.36"}, {"bogus", "1.35"}, {"1.33", "bogus"},
+		{"1.33.1", "1.35"}, {"1.33", "1.35.1"}, {"1.36", "1.37.1"},
 	} {
 		if err := ValidateEndpoints(pair[0], pair[1]); err == nil {
 			t.Fatalf("ValidateEndpoints accepted %v", pair)
@@ -188,7 +193,7 @@ func TestEndpointValidation(t *testing.T) {
 			t.Fatalf("Build accepted %v", pair)
 		}
 	}
-	for _, pair := range [][2]string{{"1.32", "1.33"}, {"1.32", "1.35"}, {"1.33", "1.35"}, {"1.34", "1.35"}, {"v1.33", "v1.35"}} {
+	for _, pair := range [][2]string{{"1.32", "1.33"}, {"1.32", "1.35"}, {"1.33", "1.35"}, {"1.34", "1.35"}, {"v1.33", "v1.35"}, {"1.35", "1.36"}, {"1.36", "1.37"}, {"1.35", "1.37"}, {"1.32", "1.37"}} {
 		if err := ValidateEndpoints(pair[0], pair[1]); err != nil {
 			t.Fatalf("ValidateEndpoints rejected %v: %v", pair, err)
 		}
@@ -781,6 +786,8 @@ func TestPolicyPinsAreApprovedOnly(t *testing.T) {
 		"v1.33.0+k3s1": "63ab8e534cdfce2a60f4b016dfedb4f8d74ae8ec",
 		"v1.34.1+k3s1": "24fc436e6ea59c56ebc37727baa4e6c9a201ee01",
 		"v1.35.0+k3s1": "a6c6cd15c0c42ec9fce21f8ad5f42aa74fddb4f2",
+		"v1.36.5+k3s1": "3dd98cc58ec34991e7e59b93663eee2e26fc1f65",
+		"v1.37.1+k3s1": "356c025475bbefaa09cf0d7e48e8e2adbbde57db",
 	}
 	if len(planPolicy.Releases) != len(want) {
 		t.Fatalf("releases=%d want=%d", len(planPolicy.Releases), len(want))
@@ -822,5 +829,43 @@ func TestOversizedEvidenceBounds(t *testing.T) {
 	in.Hops = []model.HopInput{hop}
 	if _, err := Build(context.Background(), in, "1.33", "1.34", testNow, nil); err == nil {
 		t.Fatal("oversized server evidence accepted")
+	}
+}
+func TestNewHopTargetsAndPatchMapping(t *testing.T) {
+	plan := mustBuild(t, baseInput("1.35", "1.37"), "1.35", "1.37", evalOK(nil))
+	if len(plan.Hops) != 2 || plan.Hops[0].ID != "1.35-to-1.36" || plan.Hops[1].ID != "1.36-to-1.37" {
+		t.Fatalf("hops=%+v", plan.Hops)
+	}
+	for _, want := range []struct{ id, resolved, from, to string }{
+		{"1.35-to-1.36", "1.36.0", "v1.35.0+k3s1", "v1.36.5+k3s1"},
+		{"1.36-to-1.37", "1.37.0", "v1.36.5+k3s1", "v1.37.1+k3s1"},
+	} {
+		hop := plan.Hops[0]
+		if want.id == "1.36-to-1.37" {
+			hop = plan.Hops[1]
+		}
+		if hop.ResolvedTarget != want.resolved || canonical(hop.FromRelease) != want.from || canonical(hop.ToRelease) != want.to {
+			t.Fatalf("%s: resolved=%s from=%s to=%s", want.id, hop.ResolvedTarget, hop.FromRelease, hop.ToRelease)
+		}
+		if !hasCheck(hop.Assessment, "plan-patch-mapping", "UNKNOWN", "EXACT_DISTRIBUTION_PATCH_NOT_COVERED_BY_SCHEMA_CATALOG") {
+			t.Fatalf("%s: exact-patch/schema-patch distinction missing", want.id)
+		}
+		if !hasCheck(hop.Assessment, "plan-release-pin-"+want.to, "PASS", "PINNED_OFFICIAL_TAG_REF") || !hasCheck(hop.Assessment, "plan-release-pin-"+want.from, "PASS", "PINNED_OFFICIAL_TAG_REF") {
+			t.Fatalf("%s: release pins missing", want.id)
+		}
+	}
+}
+
+func TestSource136AndObservationOnly132(t *testing.T) {
+	plan := mustBuild(t, baseInput("1.36", "1.37"), "1.36", "1.37", evalOK(nil))
+	if len(plan.Hops) != 1 || plan.Hops[0].CompatibilityMinor != "1.37" {
+		t.Fatalf("1.36->1.37 hops=%+v", plan.Hops)
+	}
+	old := mustBuild(t, baseInput("1.32", "1.37"), "1.32", "1.37", evalOK(nil))
+	if len(old.Hops) != 5 {
+		t.Fatalf("1.32->1.37 hops=%d", len(old.Hops))
+	}
+	if old.Hops[0].FromRelease != "" || !hasCheck(old.Hops[0].Assessment, "plan-release", "UNKNOWN", "EXACT_OFFICIAL_RELEASE_PROVENANCE_UNKNOWN") {
+		t.Fatal("1.32 source must stay observation-only")
 	}
 }

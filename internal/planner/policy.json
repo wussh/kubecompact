@@ -16,6 +16,14 @@
     "v1.35.0+k3s1": {
       "tagRef": "a6c6cd15c0c42ec9fce21f8ad5f42aa74fddb4f2",
       "source": "https://github.com/k3s-io/k3s/releases/tag/v1.35.0%2Bk3s1"
+    },
+    "v1.36.5+k3s1": {
+      "tagRef": "3dd98cc58ec34991e7e59b93663eee2e26fc1f65",
+      "source": "https://github.com/k3s-io/k3s/releases/tag/v1.36.5%2Bk3s1"
+    },
+    "v1.37.1+k3s1": {
+      "tagRef": "356c025475bbefaa09cf0d7e48e8e2adbbde57db",
+      "source": "https://github.com/k3s-io/k3s/releases/tag/v1.37.1%2Bk3s1"
     }
   }
 }

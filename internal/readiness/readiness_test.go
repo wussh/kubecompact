@@ -98,14 +98,14 @@ func TestSchemaReferenceNeverLoadsNetwork(t *testing.T) {
 	}
 }
 func TestTargetPatchIsExplicit(t *testing.T) {
-	for _, target := range []string{"1.33", "v1.33", "1.33.0", "v1.33.0", "1.34", "v1.34", "1.34.0", "v1.34.0", "1.35", "v1.35", "1.35.0", "v1.35.0"} {
+	for _, target := range []string{"1.33", "v1.33", "1.33.0", "v1.33.0", "1.34", "v1.34", "1.34.0", "v1.34.0", "1.35", "v1.35", "1.35.0", "v1.35.0", "1.36", "v1.36", "1.36.0", "v1.36.0", "1.37", "v1.37", "1.37.0", "v1.37.0"} {
 		resolved, e := ResolveTarget(target)
 		minor := strings.TrimPrefix(target, "v")[:4]
 		if e != nil || resolved != minor+".0" {
 			t.Fatalf("resolve %q=%q,%v", target, resolved, e)
 		}
 	}
-	for _, target := range []string{"1.35.1", "1.33.1", "1.34.1", "1.32", "1.36", "master", "1.35.0-rc.1", "1.33.00"} {
+	for _, target := range []string{"1.35.1", "1.33.1", "1.34.1", "1.36.1", "1.37.1", "1.32", "1.38", "1.38.0", "master", "1.36.0-rc.1", "1.37.0-rc.1", "1.33.00"} {
 		if _, e := ResolveTarget(target); e == nil {
 			t.Fatalf("accepted %q", target)
 		}
@@ -155,6 +155,105 @@ func TestControlPlaneObservationStaysUnknown(t *testing.T) {
 			}
 			if !found {
 				t.Fatalf("missing %s/%s control-plane observation in %+v", tc.state, tc.reason, results)
+			}
+		})
+	}
+}
+func TestStrictSchemaPerNewTarget(t *testing.T) {
+	valid := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"ok"},"spec":{"selector":{"matchLabels":{"app":"x"}},"template":{"metadata":{"labels":{"app":"x"}},"spec":{"containers":[{"name":"c","image":"example.invalid/c:1"}]}}}}`
+	unknownField := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"bad"},"spec":{"selector":{"matchLabels":{"app":"x"}},"template":{"metadata":{"labels":{"app":"x"}},"spec":{"containers":[{"name":"c","image":"example.invalid/c:1"}]}}},"bogusField":true}`
+	absentGVK := `{"apiVersion":"example.org/v1","kind":"Widget","metadata":{"name":"w"},"spec":{"size":1}}`
+	for _, target := range []string{"1.36", "1.37"} {
+		t.Run(target, func(t *testing.T) {
+			check := func(body string) []model.CheckResult {
+				inv := discovery.FromObjects([]map[string]any{object(body)}, "manifests", "local")
+				results, err := Check(context.Background(), inv, model.CheckOptions{TargetKubernetes: target})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return results
+			}
+			if !find(check(valid), "schema", "PASS") {
+				t.Fatalf("%s valid Deployment did not pass strict schema", target)
+			}
+			if !find(check(unknownField), "schema", "FAIL") {
+				t.Fatalf("%s unknown field did not fail strict schema", target)
+			}
+			if !find(check(absentGVK), "schema", "UNKNOWN") {
+				t.Fatalf("%s absent GVK did not stay UNKNOWN", target)
+			}
+		})
+	}
+}
+
+func TestLifecycleBoundaries136And137(t *testing.T) {
+	api := func(body, target, state, reason string) {
+		t.Helper()
+		inv := discovery.FromObjects([]map[string]any{object(body)}, "manifests", "local")
+		results, err := Check(context.Background(), inv, model.CheckOptions{TargetKubernetes: target})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, result := range results {
+			if result.Domain == "api" && result.State == state && result.Reason == reason {
+				return
+			}
+		}
+		t.Fatalf("%s on %s: missing api %s/%s in %+v", body, target, state, reason, results)
+	}
+	// MutatingAdmissionPolicy v1 is introduced in the pinned 1.36 catalog.
+	policy := `{"apiVersion":"admissionregistration.k8s.io/v1","kind":"MutatingAdmissionPolicy","metadata":{"name":"p"},"spec":{}}`
+	api(policy, "1.36", "PASS", "API_AVAILABLE_AT_TARGET")
+	// storage v1beta1 VolumeAttributesClass is deprecated at 1.34 and removed at 1.37.
+	vac := `{"apiVersion":"storage.k8s.io/v1beta1","kind":"VolumeAttributesClass","metadata":{"name":"v"},"driverName":"example.invalid"}`
+	api(vac, "1.36", "FAIL", "API_DEPRECATED")
+	api(vac, "1.37", "FAIL", "API_REMOVED")
+
+	// Boundary arithmetic is exercised directly because each pinned catalog only
+	// carries entries known at its own release.
+	notYet := lifecycleResult(lifecycleEntry{Introduced: "1.37"}, true, "synthetic", 36, map[string]lifecycleEntry{})
+	if notYet.State != "FAIL" || notYet.Reason != "API_NOT_YET_AVAILABLE" {
+		t.Fatalf("introduced-later boundary=%+v", notYet)
+	}
+	removed := lifecycleResult(lifecycleEntry{Introduced: "1.30", Removed: "1.37"}, true, "synthetic", 37, map[string]lifecycleEntry{})
+	if removed.State != "FAIL" || removed.Reason != "API_REMOVED" {
+		t.Fatalf("removed boundary=%+v", removed)
+	}
+	deprecated := lifecycleResult(lifecycleEntry{Introduced: "1.30", Deprecated: "1.36"}, true, "synthetic", 36, map[string]lifecycleEntry{})
+	if deprecated.State != "FAIL" || deprecated.Reason != "API_DEPRECATED" {
+		t.Fatalf("deprecated boundary=%+v", deprecated)
+	}
+}
+func TestRemovedAutoscalingBetaAPIsStayBlocked(t *testing.T) {
+	bodies := []string{
+		`{"apiVersion":"autoscaling/v2beta2","kind":"HorizontalPodAutoscaler","metadata":{"name":"hpa-v2beta2"}}`,
+		`{"apiVersion":"autoscaling/v2beta1","kind":"HorizontalPodAutoscaler","metadata":{"name":"hpa-v2beta1"}}`,
+	}
+	for _, target := range []string{"1.36", "1.37", "1.35"} {
+		t.Run(target, func(t *testing.T) {
+			for _, body := range bodies {
+				inv := discovery.FromObjects([]map[string]any{object(body)}, "manifests", "local")
+				results, err := Check(context.Background(), inv, model.CheckOptions{TargetKubernetes: target})
+				if err != nil {
+					t.Fatal(err)
+				}
+				var api *model.CheckResult
+				for i := range results {
+					if results[i].Domain == "api" {
+						api = &results[i]
+					}
+				}
+				if api == nil || api.State != "FAIL" || api.Severity != "BLOCKER" || api.Reason != "API_REMOVED" {
+					t.Fatalf("%s %s: api=%+v", target, body, api)
+				}
+				source := api.Details["source"]
+				if target == "1.35" {
+					if !strings.Contains(source, "github.com/kubernetes/api/blob/") {
+						t.Fatalf("1.35 catalog source was replaced: %q", source)
+					}
+				} else if !strings.Contains(source, "deprecation-guide") {
+					t.Fatalf("%s supplement source=%q", target, source)
+				}
 			}
 		})
 	}

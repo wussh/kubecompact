@@ -6,7 +6,7 @@ import (
 )
 
 func TestTargetDatasets(t *testing.T) {
-	for _, target := range []string{"1.33.0", "1.34.0", "1.35.0"} {
+	for _, target := range []string{"1.33.0", "1.34.0", "1.35.0", "1.36.0", "1.37.0"} {
 		t.Run(target, func(t *testing.T) {
 			d, err := ForTarget(target)
 			if err != nil {
@@ -27,7 +27,7 @@ func TestTargetDatasets(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := map[string]int{"1.33.0": 698, "1.34.0": 721, "1.35.0": 726}[target]
+			want := map[string]int{"1.33.0": 698, "1.34.0": 721, "1.35.0": 726, "1.36.0": 762, "1.37.0": 845}[target]
 			if len(schemas) != want {
 				t.Fatalf("schemas%d want%d", len(schemas), want)
 			}
@@ -44,7 +44,7 @@ func TestTargetDatasets(t *testing.T) {
 			}
 		})
 	}
-	for _, target := range []string{"", "1.33", "1.32.0", "1.34.1", "1.35.1", "1.36.0"} {
+	for _, target := range []string{"", "1.33", "1.32.0", "1.34.1", "1.35.1", "1.36", "1.36.1", "1.37", "1.37.1", "1.38.0"} {
 		if _, err := ForTarget(target); err == nil {
 			t.Fatalf("accepted %q", target)
 		}

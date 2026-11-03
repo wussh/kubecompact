@@ -75,7 +75,7 @@ func TestPlanRejectsUnsafeOptionsBeforeInput(t *testing.T) {
 		{"plan", "--from-k8s", "1.33", "--target-k8s", "1.35", "--plan-input", input, "--format", "pdf"},
 		{"plan", "--from-k8s", "1.33", "--target-k8s", "1.33", "--plan-input", input},
 		{"plan", "--from-k8s", "1.34", "--target-k8s", "1.33", "--plan-input", input},
-		{"plan", "--from-k8s", "1.35", "--target-k8s", "1.36", "--plan-input", input},
+		{"plan", "--from-k8s", "1.36", "--target-k8s", "1.38", "--plan-input", input},
 		{"plan", "--from-k8s", "1.31", "--target-k8s", "1.35", "--plan-input", input},
 		{"plan", "--from-k8s", "1.33", "--target-k8s", "1.35.1", "--plan-input", input},
 	} {
